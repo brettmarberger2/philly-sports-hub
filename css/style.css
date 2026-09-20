@@ -487,3 +487,21 @@ html { scroll-behavior: auto; } @media (max-width: 960px) { .brand span.t { disp
   .drow { grid-template-columns: repeat(5, minmax(0, 1fr)); } .drow .dl { grid-column: 1 / -1; margin-top: 6px; }
 }
 .hero:not(.slim) { padding-bottom: 46px; } .hero + .tm { margin-top: 26px; }
+
+/* ===== v6: never let grid/flex children force the page wider than the screen ===== */
+.split > *, .grid > *, .hero-grid > *, .mag > *, .tl2-body > *, .ybd > *, .cols > *, .stack > *, .row > * { min-width: 0; }
+.card, .gamebox, .ysec, .team-card { min-width: 0; max-width: 100%; }
+@media (max-width: 960px) {
+  .split, .hero-grid, .mag, .tl2-body, .ysec .ybd, .tldetail .cols { grid-template-columns: minmax(0, 1fr); }
+  .stat-tile .v, .star .n, .pname span, .news .t { overflow-wrap: anywhere; }
+  .stat-tile.row { flex-wrap: wrap !important; }
+}
+@media (max-width: 620px) {
+  .g2, .g3, .g4 { grid-template-columns: minmax(0, 1fr); }
+  .grid.g-auto { grid-template-columns: minmax(0, 1fr); }
+  .team-head .stats { width: 100%; } .team-head .big-stat { flex: 1 1 0; min-width: 0; padding: 10px 8px; }
+  .gamebox .matchup { gap: 6px; } .matchup .side span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .gamebox .lab { flex-wrap: wrap; }
+}
+.pl-tabs { display: flex; flex-wrap: wrap; max-width: 100%; } .pl-tabs .chip { flex: 1 1 auto; justify-content: center; padding: 7px 10px; }
+.modal, .modal .pl-body { min-width: 0; max-width: 100%; } .modal-back { padding: 16px 8px; }
