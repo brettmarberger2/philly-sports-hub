@@ -211,3 +211,11 @@ window.CUR = {
     { name: 'Nick Castellanos', pos: 'RF', term: '5 yrs / $100M', years: '2022-2026', aav: 20.0 },
   ],
 };
+
+/* Wikipedia page titles for player/coach bios (only where the plain name is ambiguous) */
+CUR.wikiTitle = {
+  'Robin Roberts': 'Robin_Roberts_(baseball)', 'Bobby Jones': 'Bobby_Jones_(basketball,_born_1951)', 'Jerome Brown': 'Jerome_Brown_(American_football)',
+  'Dick Allen': 'Dick_Allen', 'Mike Schmidt': 'Mike_Schmidt', 'Chuck Klein': 'Chuck_Klein', 'Al Wistert': 'Al_Wistert', 'Tom Brookshier': 'Tom_Brookshier',
+  'Jim Bunning': 'Jim_Bunning', 'Charlie Manuel': 'Charlie_Manuel', 'Nick Foles': 'Nick_Foles', 'Harold Carmichael': 'Harold_Carmichael', 'Hal Greer': 'Hal_Greer',
+  'Jason Kelce': 'Jason_Kelce', 'Reggie White': 'Reggie_White', 'Larry Bowa': 'Larry_Bowa',
+};

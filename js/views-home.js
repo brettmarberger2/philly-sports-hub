@@ -48,11 +48,18 @@ async function viewHome({ mount, alive }) {
           <a class="btn" href="#/year">Year Explorer</a>
           <a class="btn" href="#/shop">Shop fan gear</a>
         </div>
-        <form id="yearForm" class="row" style="gap:8px;margin-top:16px"><input type="number" id="yearIn" min="${yr.min}" max="${yr.max + 1}" placeholder="Jump to a year (e.g. 1980)" style="width:230px"><button class="btn" type="submit">Go →</button></form>
       </div>
       <div class="hero-tiles" id="heroTiles">${TEAM_KEYS.map(k => `<a class="hero-tile" href="#/team/${k}" style="--c1:${TEAMS[k].primary}"><img src="${teamLogoOn(TEAMS[k])}" alt=""><div><div class="nm">${TEAMS[k].nick}</div><div class="sub">${TEAMS[k].sportName} · ${H.titles(k).length} titles · since ${TEAMS[k].since}</div></div><div class="rc">—<small>Record</small></div></a>`).join('')}</div>
     </div></section>
-    <div id="liveStrip"></div>
+    <section class="tm" id="tm">
+      <div class="tm-top"><div><h2>Time machine</h2><p class="sub">Pick any year from ${yr.min} to today. See how the Eagles, Phillies and 76ers did, who won the title, then open the year for the players, stats and stories.</p></div><div class="tm-year" id="tmYear">1980</div></div>
+      <input type="range" id="tmRange" min="${yr.min}" max="${new Date().getFullYear()}" value="1980" aria-label="Pick a year">
+      <div class="ends"><span>${yr.min}</span><span>DRAG TO TRAVEL THROUGH TIME</span><span>${new Date().getFullYear()}</span></div>
+      <div class="decs" id="tmDecs">${[...Array(Math.floor((new Date().getFullYear() - 1880) / 10) + 1)].map((_, i) => 1880 + i * 10).map(d => `<button data-y="${d < yr.min ? yr.min : d + 5}">${d}s</button>`).join('')}</div>
+      <div class="champline" id="tmChamp"></div>
+      <div class="tm-cards" id="tmCards"></div>
+      <div class="go"><a class="btn go-btn" id="tmGo" href="#/year/1980">Open 1980 →</a><span class="small" style="color:#ffffffb0">or type a year</span><input type="number" id="tmNum" min="${yr.min}" max="${new Date().getFullYear()}" value="1980" style="width:100px"></div>
+    </section>    <div id="liveStrip"></div>
     <section class="section"><h2>Game day</h2><div class="grid g3" id="teamCards">${TEAM_KEYS.map(k => `<div class="card">${spinner()}</div>`).join('')}</div></section>
     <section class="section"><h2>Headlines</h2><div id="homeNews">${spinner('Loading headlines…')}</div></section>
     <section class="section"><h2>Championship banners</h2><div class="grid g3">${TEAM_KEYS.map(k => `<div class="card"><div class="row between" style="margin-bottom:12px"><h3 style="margin:0"><img src="${teamLogo(TEAMS[k])}" width="34" height="34" alt=""> ${TEAMS[k].nick}</h3><span class="badge gold">${H.titles(k).length} titles</span></div>${bannerWall(k)}<a class="btn small ghost" style="margin-top:14px" href="#/team/${k}/history">Full history →</a></div>`).join('')}</div></section>
@@ -64,8 +71,24 @@ async function viewHome({ mount, alive }) {
       .map(([h, i, a, b]) => `<a class="card" href="${h}"><div style="font-size:2.2rem">${i}</div><h3 style="margin-top:8px">${a}</h3><div class="muted small">${b}</div></a>`).join('')}
     </div></section>`;
 
-  $('#yearForm').addEventListener('submit', e => { e.preventDefault(); const v = +$('#yearIn').value; if (v) location.hash = `#/year/${v}`; });
 
+  const tmUpdate = y => {
+    y = Math.min(Math.max(+y || 1980, yr.min), new Date().getFullYear());
+    $('#tmYear').textContent = y; $('#tmRange').value = y; $('#tmNum').value = y; $('#tmGo').href = `#/year/${y}`; $('#tmGo').textContent = `Open ${y} →`;
+    $$('#tmDecs button').forEach(b => b.classList.toggle('on', Math.floor(+b.dataset.y / 10) === Math.floor(y / 10)));
+    $('#tmCards').innerHTML = TEAM_KEYS.map(k => {
+      const tt = TEAMS[k], s = H.find(k, y);
+      const body = s ? `<div class="rc">${H.record(tt, s)}</div><div class="rs">${s.result === 'champion' ? '🏆 ' + esc(H.champ(tt, y)?.game || 'Champions') : esc(H.outcome(s))}</div>` : `<div class="rs">${y < tt.since ? 'Not founded yet' : y >= new Date().getFullYear() ? 'Season in progress' : 'No season on file'}</div>`;
+      return `<div class="tm-card ${s?.result === 'champion' ? 'champ' : ''}"><img src="${teamLogoOn(tt)}" alt=""><div><div style="font-weight:800">${tt.nick}</div>${body}</div></div>`;
+    }).join('');
+    const ch = TEAM_KEYS.map(k => H.champ(TEAMS[k], y)).filter(Boolean);
+    $('#tmChamp').innerHTML = ch.length ? 'League champions: ' + ch.map(c => `<b>${esc(c.winner)}</b> (${esc(c.game.replace('NFL Championship', 'NFL').replace('Super Bowl ', 'SB '))})`).join(' · ') : '';
+  };
+  $('#tmRange').addEventListener('input', e => tmUpdate(e.target.value));
+  $('#tmNum').addEventListener('change', e => tmUpdate(e.target.value));
+  $('#tmNum').addEventListener('keydown', e => { if (e.key === 'Enter') location.hash = `#/year/${$('#tmNum').value}`; });
+  $('#tmDecs').addEventListener('click', e => { const b = e.target.closest('button'); if (b) tmUpdate(b.dataset.y); });
+  tmUpdate(1980);
   const draw = async () => {
     const stats = await Promise.all(TEAM_KEYS.map(async k => {
       const t = TEAMS[k];

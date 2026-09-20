@@ -20,24 +20,28 @@ function renderNav(activeKey) {
     ...TEAM_KEYS.map(k => [`team/${k}`, TEAMS[k].nick, teamLogo(TEAMS[k])]),
     ['history', 'History', null], ['year', 'Year Explorer', null], ['stadiums', 'Stadiums', null], ['shop', 'Shop', null],
   ];
+  const isAct = p => activeKey === p || (p && activeKey.startsWith(p) && p !== '');
+  $('#mmenu').innerHTML = `<div class="mh">Teams</div><div class="mgrid">${TEAM_KEYS.map(k => `<a href="#/team/${k}" class="${isAct('team/' + k) ? 'active' : ''}"><img src="${teamLogo(TEAMS[k])}" alt="">${TEAMS[k].nick}</a>`).join('')}<a href="#/history" class="${isAct('history') ? 'active' : ''}">📜 History</a></div><div class="mh">Explore</div><div class="mgrid"><a href="#/" class="${activeKey === '' ? 'active' : ''}">🏠 Home</a><a href="#/year" class="${isAct('year') ? 'active' : ''}">🗓️ Year Explorer</a><a href="#/stadiums" class="${isAct('stadiums') ? 'active' : ''}">🏟️ Stadiums</a><a href="#/shop" class="${isAct('shop') ? 'active' : ''}">🛍️ Shop</a></div>`;
   $('#nav').innerHTML = items.map(([p, label, img], i) => `${i === 1 || label === 'History' ? '<span class="sep"></span>' : ''}<a href="#/${p}" class="${activeKey === p || (p && activeKey.startsWith(p) && p !== '') ? 'active' : ''}">${img ? `<img src="${img}" alt="">` : ''}${label}</a>`).join('');
 }
 
 /* ---------- Live score ticker (all pages) ---------- */
-function tickerItem(t, gs) {
-  if (!gs) return '';
-  const now = Date.now();
-  const g = gs.live || (gs.next && gs.next.ts - now < 40 * 3600e3 ? gs.next : gs.last || gs.next);
-  if (!g) return `<a class="tk" href="#/team/${t.key}"><img src="${teamLogo(t)}" alt=""><div><div class="who">${t.nick}</div><div class="st">No games scheduled</div></div></a>`;
-  const live = g.state === 'in', done = g.state === 'post';
-  const status = live ? `<span class="livedot"></span> LIVE · ${esc(g.detail)}` : done ? `Final${g.label ? ' · ' + esc(g.label) : ''} · ${esc(fmtDay(g.date))}` : `${esc(fmtDay(g.date))} · ${esc(fmtTime(g.date))}`;
-  const score = live || done ? `<span class="${g.result === 'W' ? 'win' : g.result === 'L' ? 'loss' : ''}">${done ? g.result + ' ' : ''}${g.ourScore ?? 0}–${g.oppScore ?? 0}</span>` : `<span class="dim" style="font-size:.9rem">${g.home ? 'HOME' : 'AWAY'}</span>`;
-  return `<a class="tk" href="#/team/${t.key}"><img src="${teamLogo(t)}" alt=""><div><div class="who">${esc(t.abbr)} ${g.home ? 'vs' : '@'} ${esc(g.opp.abbr || g.opp.short)}</div><div class="st">${status}</div></div><div class="sc">${score}</div></a>`;
+function tickerItem(t, rg) {
+  if (!rg) return '';
+  const res = g => `<span class="${g.result === 'W' ? 'win' : g.result === 'L' ? 'loss' : ''}">${g.result} ${g.ourScore}–${g.oppScore}</span> ${g.home ? 'vs' : '@'} ${esc(g.opp.abbr || g.opp.short)}`;
+  const recent = [...rg.list].reverse();            // newest first
+  const first = rg.live ? `<span class="badge live" style="padding:1px 7px">Live</span> ${rg.live.ourScore ?? 0}–${rg.live.oppScore ?? 0} ${rg.live.home ? 'vs' : '@'} ${esc(rg.live.opp.abbr || rg.live.opp.short)} <span class="lab">${esc(rg.live.detail)}</span>` : recent[0] ? `${res(recent[0])} <span class="lab">${esc(fmtDate(recent[0].date, { month: 'short', day: 'numeric' }))}</span>` : 'No games yet';
+  const second = rg.live ? (recent[0] ? `Last: ${res(recent[0])}` : '') : recent[1] ? `Prev: ${res(recent[1])} · ${esc(fmtDate(recent[1].date, { month: 'short', day: 'numeric' }))}` : '';
+  return `<a class="tk" href="#/team/${t.key}/schedule"><img src="${teamLogo(t)}" alt=""><div><div class="l1"><span>${esc(t.nick)}</span> ${first}</div>${second ? `<div class="l2">${second}</div>` : ''}</div></a>`;
 }
 async function renderTicker() {
-  const res = await Promise.all(TEAM_KEYS.map(async k => ({ t: TEAMS[k], gs: await safe(API.gameStatus(TEAMS[k]), null) })));
-  $('#ticker .ticker-inner').innerHTML = `<div class="ticker-label"><span class="livedot"></span> Scores</div>${res.map(r => tickerItem(r.t, r.gs)).join('')}`;
+  const res = await Promise.all(TEAM_KEYS.map(async k => ({ t: TEAMS[k], rg: await safe(API.recentGames(TEAMS[k], 2), null) })));
+  $('#ticker .ticker-inner').innerHTML = `<div class="ticker-label"><span class="livedot"></span> Latest</div>${res.map(r => tickerItem(r.t, r.rg)).join('')}`;
 }
+
+
+function setMenu(open) { const m = $('#mmenu'); if (!m) return; m.hidden = !open; $('#menuBtn').setAttribute('aria-expanded', open ? 'true' : 'false'); $('#menuBtn').textContent = open ? '✕' : '☰'; }
+$('#menuBtn').addEventListener('click', () => setMenu($('#mmenu').hidden));
 
 async function route() {
   App.clearTimers();
@@ -52,8 +56,10 @@ async function route() {
   renderNav(activeKey);
   setTheme(head === 'team' || head === 'season' ? parts[1] : null);
   closeModal();
-  window.scrollTo({ top: 0 });
-  view.innerHTML = spinner();
+  setMenu(false);
+  const prev = App.cur; App.cur = { head, key: parts[1] };
+  const sameTeam = head === 'team' && prev && prev.head === 'team' && prev.key === parts[1] && $('#tabBody');
+  if (!sameTeam) { window.scrollTo(0, 0); view.innerHTML = spinner(); }
   try {
     let fn;
     if (!head) fn = viewHome;

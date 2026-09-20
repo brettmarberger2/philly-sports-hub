@@ -8,7 +8,7 @@ const prettySlug = s => (s || '').split('-').map(w => w.charAt(0).toUpperCase() 
 
 document.addEventListener('click', e => {
   const el = e.target.closest('[data-player]');
-  if (el) { e.preventDefault(); openPlayer(el.dataset.team, el.dataset.player); }
+  if (el) { e.preventDefault(); openPlayer(el.dataset.team, el.dataset.player, el.dataset.name); }
   const tab = e.target.closest('[data-pltab]');
   if (tab) {
     $$('[data-pltab]').forEach(b => b.classList.toggle('on', b === tab));
@@ -51,12 +51,13 @@ function teamsPath(stats, t) {
   return `<ol style="list-style:none;padding:0;margin:0;display:flex;flex-direction:column;gap:8px">${list.map((c, i) => `<li class="fact" style="margin:0"><b>${esc(c.name)}</b> <span class="muted">· ${c.min === c.max ? c.min : c.min + '–' + c.max}</span>${c.name === t.name ? ' <span class="badge team">Current</span>' : ''}</li>`).join('')}</ol>`;
 }
 
-async function openPlayer(teamKey, id) {
+async function openPlayer(teamKey, id, nameHint) {
   const t = TEAMS[teamKey];
   openModal(`<div class="pl-body">${spinner('Loading player…')}</div>`);
   let p = null;
   try { p = (await getRosterCached(teamKey)).players.find(x => String(x.id) === String(id)); } catch (e) { /* ignore */ }
-  if (!p) p = { id, name: 'Player', contracts: [], injuries: [], headshot: headshot(t, id) };
+  const fromRoster = !!p;
+  if (!p) p = { id, name: nameHint || 'Player', contracts: [], injuries: [], headshot: headshot(t, id) };
   const base = () => `
     <div class="pl-head">
       <img src="${esc(p.headshot)}" alt="" onerror="this.style.visibility='hidden'">
@@ -90,6 +91,7 @@ async function openPlayer(teamKey, id) {
   </div>`;
   openModal(shell(null, undefined));
   const { bio, stats } = await API.athlete(t, id);
+  if (!fromRoster && bio) { p.name = bio.displayName || p.name; p.pos = bio.position?.abbreviation || ''; p.posName = bio.position?.displayName || ''; p.jersey = bio.jersey || ''; p.headshot = bio.headshot?.href || p.headshot; p.age = bio.age; p.height = bio.displayHeight; p.weight = bio.displayWeight; p.college = bio.college?.name || bio.collegeTeam?.displayName || ''; }
   if (!$('#modalBack').classList.contains('open')) return;
   const prevTab = $('[data-pltab].on')?.dataset.pltab || 'overview';
   openModal(shell(bio, stats || { categories: [] }));

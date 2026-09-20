@@ -8,8 +8,15 @@ const yearLabel = (t, y) => (t.league === 'nba' ? `${y - 1}–${String(y).slice(
 async function viewTeam({ parts, q, mount, alive }) {
   const key = parts[1], t = TEAMS[key], tab = TAB_LIST.some(x => x[0] === parts[2]) ? parts[2] : 'overview';
   const tot = H.totals(key);
-  mount.innerHTML = `
-    <div class="team-head" id="teamHead">
+  const existing = $('#teamHead')?.dataset.team === key && $('#tabBody');
+  if (existing) {
+    $$('#tabs a').forEach(a => a.classList.toggle('active', a.getAttribute('href') === `#/team/${key}/${tab}`));
+    $('#tabBody').style.minHeight = '70vh'; $('#tabBody').innerHTML = spinner();
+    const y = $('#tabs').getBoundingClientRect().top + window.scrollY - (innerWidth <= 960 ? 8 : 62);
+    if (window.scrollY > y) window.scrollTo(0, Math.max(0, y));
+  }
+  if (!existing) mount.innerHTML = `
+    <div class="team-head" id="teamHead" data-team="${key}">
       <img class="logo" src="${teamLogoOn(t)}" alt="${esc(t.name)}">
       <div class="meta"><div class="small muted" style="letter-spacing:.12em;text-transform:uppercase">${t.sportName} · Est. ${t.since}</div><h1>${esc(t.name)}</h1>
         <div class="row small muted"><span>🏆 ${tot.titles} titles</span><span>🏅 ${tot.finals + tot.titles} finals</span><span>📈 ${tot.w}-${tot.l}${tot.t ? '-' + tot.t : ''} all-time</span></div></div>
@@ -25,6 +32,8 @@ async function viewTeam({ parts, q, mount, alive }) {
   });
   const fn = { overview: tabOverview, roster: tabRoster, depth: tabDepth, contracts: tabContracts, stats: tabStats, schedule: tabSchedule, coaches: tabCoaches, history: tabHistory, legends: tabLegends, stadium: tabStadium, shop: tabShop }[tab];
   await fn(t, { mount: $('#tabBody'), q, alive, key });
+  if (alive()) $('#tabBody').style.minHeight = '';
+  if (alive()) $('#tabBody').style.minHeight = '';
 }
 
 /* ---------- Overview ---------- */
@@ -124,7 +133,7 @@ async function tabRoster(t, { mount, alive }) {
   const state = { group: 'All', text: '', view: 'cards' };
   mount.innerHTML = `<div class="filters"><div class="chips" id="grpChips">${['All', ...groups].map(g => `<button class="chip ${g === 'All' ? 'on' : ''}" data-g="${esc(g)}">${esc(g)} <span class="dim">${g === 'All' ? players.length : players.filter(p => p.group === g).length}</span></button>`).join('')}</div>
     <label class="f">Search<input type="search" id="rsearch" placeholder="Name, position, college…"></label>
-    <div class="seg" id="viewSeg" style="margin-left:auto"><button data-v="cards" class="on">▦ Cards</button><button data-v="table">☰ Table</button></div>
+    <div class="seg" id="viewSeg" style="margin-left:auto"><button data-v="cards" class="on">▦ By position</button><button data-v="table">☰ Table</button></div>
     <span class="muted small" id="rcount"></span></div><div id="rtable"></div>
     <p class="disc">Live roster from ESPN (updated frequently). Click a player for bio, contract structure and career stats. Season ${esc(r.season?.displayName || '')}.</p>`;
   const cols = [
@@ -140,9 +149,9 @@ async function tabRoster(t, { mount, alive }) {
     const tx = state.text.toLowerCase();
     const rows = players.filter(p => (state.group === 'All' || p.group === state.group) && (!tx || `${p.name} ${p.pos} ${p.college} ${p.jersey}`.toLowerCase().includes(tx)));
     if (state.view === 'cards') {
-      const sorted = [...rows].sort((a, b) => (a.jersey === '' ? 999 : +a.jersey) - (b.jersey === '' ? 999 : +b.jersey));
-      $('#rtable').innerHTML = `<div class="pcards">${sorted.map(p => `<div class="pcard" data-player="${p.id}" data-team="${t.key}"><div class="ph"><span class="no">${esc(p.jersey)}</span><img src="${esc(p.headshot)}" alt="" loading="lazy" onerror="this.style.display='none'">${p.injuries.length ? `<span class="badge bad st">${esc(p.injuries[0].status)}</span>` : ''}</div><div class="pi"><b>${esc(p.name)}</b><span>${esc(p.pos)}${p.height ? ' · ' + esc(p.height) : ''}${p.age ? ' · ' + p.age + ' yrs' : ''}</span>${t.league !== 'mlb' && p.salary ? `<span style="display:block;margin-top:2px;color:var(--text);font-weight:700">${money(p.salary)}</span>` : ''}</div></div>`).join('')}</div>`;
-    } else $('#rtable').innerHTML = renderTable(`roster-${t.key}`, cols, rows, { sortKey: 'jersey', rowClass: () => 'click', rowAttr: p => `data-player="${p.id}" data-team="${t.key}"` });
+      $('#rtable').innerHTML = groupedRosterHtml(t, rows);
+
+    } else $('#rtable').innerHTML = renderTable(`roster-${t.key}`, cols, rows, { sortKey: 'jersey', rowClass: () => 'click', rowAttr: p => `data-player="${p.id}" data-team="${t.key}" data-name="${esc(p.name)}"` });
     $('#rcount').textContent = `${rows.length} players`;
   };
   $('#viewSeg').addEventListener('click', e => { const b = e.target.closest('[data-v]'); if (!b) return; state.view = b.dataset.v; $$('#viewSeg button').forEach(x => x.classList.toggle('on', x === b)); draw(); });
@@ -226,12 +235,14 @@ async function tabContractsMlb(t, { mount, alive }) {
 
 /* ---------- Stats ---------- */
 async function tabStats(t, { mount, alive }) {
-  const [s, lead, std] = await Promise.all([safe(API.teamStats(t)), safe(API.leaders(t), []), safe(API.standings(t))]); if (!alive()) return;
+  const [s, std] = await Promise.all([safe(API.teamStats(t)), safe(API.standings(t))]); if (!alive()) return;
   mount.innerHTML = `
-    <div class="card"><h3>Team leaders · current season</h3>${lead.length ? `<div class="grid" style="grid-template-columns:repeat(auto-fill,minmax(210px,1fr))">${lead.map(x => `<div class="stat-tile row" style="flex-wrap:nowrap"><img src="${esc(x.headshot)}" width="46" height="46" style="border-radius:50%;object-fit:cover;background:var(--card)" alt="" onerror="this.style.visibility='hidden'"><div><div class="v">${esc(x.value)}</div><div class="l">${esc(x.cat)}</div><div class="small">${esc(x.name)}</div></div></div>`).join('')}</div>` : '<div class="muted small">No leaders yet — check back once games have been played.</div>'}</div>
+    <div class="section" style="margin-top:0"><h2>Player stats</h2><p class="section-sub">Click any player for career stats, contract and bio.</p><div class="card" id="pstats"></div></div>
+    <div class="section"><h2>Stars this season</h2><div id="starsBox">${spinner()}</div></div>
     <div class="section"><h2>Team statistics</h2>
     ${s?.cats?.length ? `<div class="filters"><div class="chips" id="sideChips"><button class="chip on" data-s="team">${esc(t.nick)}</button><button class="chip" data-s="opp">Opponents</button></div><span class="muted small">${esc(s.season?.displayName || '')} ${esc(s.season?.name || '')}</span></div><div id="statBody"></div>` : errBox('Team statistics are not available yet for this season.')}</div>
     <div class="section"><h2>Standings</h2><div class="card">${standingsTable(std, t)}</div></div>`;
+  playerStatsPanel(t, null, $('#pstats')); starsHtml(t, null).then(h => alive() && ($('#starsBox').innerHTML = h));
   if (!s?.cats?.length) return;
   const draw = side => {
     const cats = side === 'team' ? s.cats : s.opp;

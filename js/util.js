@@ -55,6 +55,13 @@ const uniq = a => [...new Set(a)];
 const groupBy = (a, f) => a.reduce((m, x) => { (m[f(x)] ||= []).push(x); return m; }, {});
 const debounce = (fn, ms = 200) => { let t; return (...a) => { clearTimeout(t); t = setTimeout(() => fn(...a), ms); }; };
 const httpsify = u => (u ? u.replace(/^http:/, 'https:') : u);
+const fmtInt = n => (n == null || isNaN(n) ? '—' : Number(n).toLocaleString('en-US'));
+/** Run fn over items with limited concurrency, preserving order. */
+async function pool(items, n, fn) {
+  const out = new Array(items.length); let i = 0;
+  await Promise.all(Array.from({ length: Math.min(n, items.length) }, async () => { while (i < items.length) { const k = i++; out[k] = await fn(items[k], k); } }));
+  return out;
+}
 
 function recordStr(t, w, l, tie) { return t.recordFmt === 'wlt' && tie ? `${w}-${l}-${tie}` : `${w}-${l}`; }
 

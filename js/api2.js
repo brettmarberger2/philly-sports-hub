@@ -1,0 +1,79 @@
+/* Data layer, part 2: recent games, player stats, season rosters, season highlights */
+Object.assign(API, {
+  /** Last `n` finished games (falls back to last season's if the new season just started) + live + next. */
+  async recentGames(t, n = 2) {
+    const r = await API.schedule(t);
+    const hasReal = r.games.some(g => g.stype !== 1);
+    const done = r.games.filter(g => g.state === 'post' && (g.stype !== 1 || !hasReal));
+    let list = done.slice(-n);
+    if (list.length < n) {
+      const startYear = t.league === 'nba' ? r.season - 1 : r.season;
+      const prev = await safe(API.schedule(t, startYear - 1), null);
+      if (prev) list = [...prev.games.filter(g => g.state === 'post').slice(-(n - list.length)), ...list];
+    }
+    const live = r.games.find(g => g.state === 'in') || (await API.scoreboardGame(t).then(g => (g && g.state === 'in' ? g : null)));
+    const next = r.games.find(g => g.state === 'pre' && g.stype !== 1 && g.ts > Date.now() - 3 * 3600e3) || null;
+    return { live, list, next };
+  },
+
+  /** Per-player stat tables for a team-season (year=null → current). */
+  async teamPlayerStats(t, year = null) {
+    const past = year != null && year < new Date().getFullYear();
+    const ttl = past ? 86400 : 300;
+    if (t.mlbId) {
+      const y = year ?? new Date().getFullYear();
+      const get = g => safe(getJSON(`${MLB_API}/stats?stats=season&group=${g}&teamId=${t.mlbId}&season=${y}&playerPool=all&limit=80&sportId=1`, ttl), null);
+      const [h, p] = await Promise.all([get('hitting'), get('pitching')]);
+      const rows = (j, spec) => (j?.stats?.[0]?.splits || []).map(s => ({ mlbId: s.player.id, name: s.player.fullName, pos: s.position?.abbreviation || '', v: Object.fromEntries(spec.map(([k, f]) => [k, s.stat?.[f] ?? ''])) }));
+      const hs = [['G', 'gamesPlayed'], ['AB', 'atBats'], ['R', 'runs'], ['H', 'hits'], ['HR', 'homeRuns'], ['RBI', 'rbi'], ['SB', 'stolenBases'], ['AVG', 'avg'], ['OBP', 'obp'], ['OPS', 'ops']];
+      const ps = [['G', 'gamesPlayed'], ['GS', 'gamesStarted'], ['W', 'wins'], ['L', 'losses'], ['SV', 'saves'], ['IP', 'inningsPitched'], ['K', 'strikeOuts'], ['ERA', 'era'], ['WHIP', 'whip']];
+      return { tables: [
+        { key: 'hitting', name: 'Batting', cols: hs.map(([k]) => k), rows: rows(h, hs), sortKey: 'HR' },
+        { key: 'pitching', name: 'Pitching', cols: ps.map(([k]) => k), rows: rows(p, ps), sortKey: 'IP' },
+      ].filter(x => x.rows.length) };
+    }
+    if (t.league === 'nba') {
+      const j = await safe(getJSON(`${ESPN.common(t)}/statistics/byathlete?region=us&lang=en&contentorigin=espn&isqualified=false&limit=40&team=${t.espnId}&season=${espnSeason(t, year ?? new Date().getFullYear() - (new Date().getMonth() < 8 ? 1 : 0))}&seasontype=2&sort=offensive.avgPoints%3Adesc`, ttl), null);
+      const spec = [['GP', 'general', 0], ['MIN', 'general', 1], ['PTS', 'offensive', 0], ['REB', 'general', 11], ['AST', 'offensive', 10], ['STL', 'defensive', 0], ['BLK', 'defensive', 1], ['FG%', 'offensive', 3], ['3P%', 'offensive', 6], ['FT%', 'offensive', 9]];
+      const rows = (j?.athletes || []).map(a => {
+        const cat = n => a.categories?.find(c => c.name === n)?.totals || [];
+        return { id: a.athlete.id, name: a.athlete.displayName, pos: a.athlete.position?.abbreviation || '', v: Object.fromEntries(spec.map(([k, c, i]) => [k, cat(c)[i] ?? ''])) };
+      }).filter(r => r.v.GP && r.v.GP !== '-');
+      return { tables: rows.length ? [{ key: 'pergame', name: 'Per game', cols: spec.map(s => s[0]), rows, sortKey: 'PTS' }] : [] };
+    }
+    // NFL: ranked lists from the season leaders feed (works for past seasons too)
+    const season = espnSeason(t, year ?? new Date().getFullYear());
+    const j = await safe(getJSON(`${ESPN.core(t)}/seasons/${season}/types/2/teams/${t.espnId}/leaders`, ttl), null);
+    const want = [['passingLeader', 'Passing'], ['rushingLeader', 'Rushing'], ['receivingLeader', 'Receiving'], ['totalTackles', 'Tackles'], ['sacks', 'Sacks'], ['interceptions', 'Interceptions'], ['receptions', 'Receptions']];
+    const cats = want.map(([n, label]) => ({ label, c: j?.categories?.find(c => c.name === n) })).filter(x => x.c?.leaders?.length);
+    const refs = uniq(cats.flatMap(x => x.c.leaders.map(l => l.athlete?.$ref)).filter(Boolean));
+    const names = {};
+    await pool(refs, 10, async ref => { const a = await safe(getJSON(httpsify(ref), 86400), null); names[ref] = { name: a?.displayName || a?.fullName || '', pos: a?.position?.abbreviation || '', id: a?.id }; });
+    return { tables: cats.map(({ label, c }) => ({
+      key: label.toLowerCase(), name: label, cols: ['Stat line'], sortKey: null,
+      rows: c.leaders.slice(0, 12).map(l => { const m = names[l.athlete?.$ref] || {}; return { id: m.id, name: m.name, pos: m.pos, v: { 'Stat line': l.displayValue } }; }).filter(r => r.name),
+    })).filter(x => x.rows.length) };
+  },
+
+  /** MLB only: the full roster for a past season (ESPN's historical NFL/NBA rosters return today's players, so they aren't used). */
+  async seasonRoster(t, year) {
+    return t.mlbId ? API.mlbRosterForYear(t, year) : [];
+  },
+});
+
+/** Notable moments derived from a season's game log. */
+function seasonHighlights(t, games) {
+  const unit = t.mlbId ? 'runs' : 'points';
+  const played = games.filter(g => g.state === 'post' && g.ourScore != null && g.stype !== 3).sort((a, b) => a.ts - b.ts);
+  if (played.length < 4) return [];
+  const out = [], desc = g => `${g.result} ${g.ourScore}–${g.oppScore} ${g.home ? 'vs' : '@'} ${g.opp.name} (${fmtDate(g.date, { month: 'short', day: 'numeric' })})`;
+  const wins = played.filter(g => g.result === 'W'), losses = played.filter(g => g.result === 'L');
+  if (wins.length) { const b = [...wins].sort((a, b) => (b.ourScore - b.oppScore) - (a.ourScore - a.oppScore))[0]; out.push(['Biggest win', `${desc(b)} — by ${b.ourScore - b.oppScore} ${unit}`]); }
+  if (losses.length) { const b = [...losses].sort((a, b) => (a.ourScore - a.oppScore) - (b.ourScore - b.oppScore))[0]; out.push(['Toughest loss', `${desc(b)} — by ${b.oppScore - b.ourScore} ${unit}`]); }
+  const streak = res => { let best = { n: 0, s: 0 }, cur = 0, start = 0; played.forEach((g, i) => { if (g.result === res) { if (!cur) start = i; cur++; if (cur > best.n) best = { n: cur, s: start }; } else cur = 0; }); return best; };
+  const w = streak('W'), l = streak('L');
+  if (w.n >= 3) out.push(['Longest winning streak', `${w.n} straight, ${fmtDate(played[w.s].date, { month: 'short', day: 'numeric' })} – ${fmtDate(played[w.s + w.n - 1].date, { month: 'short', day: 'numeric' })}`]);
+  if (l.n >= 3) out.push(['Longest losing streak', `${l.n} straight, ${fmtDate(played[l.s].date, { month: 'short', day: 'numeric' })} – ${fmtDate(played[l.s + l.n - 1].date, { month: 'short', day: 'numeric' })}`]);
+  out.push(['Season opener', desc(played[0])]);
+  return out;
+}
