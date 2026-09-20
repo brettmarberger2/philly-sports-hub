@@ -219,3 +219,22 @@ CUR.wikiTitle = {
   'Jim Bunning': 'Jim_Bunning', 'Charlie Manuel': 'Charlie_Manuel', 'Nick Foles': 'Nick_Foles', 'Harold Carmichael': 'Harold_Carmichael', 'Hal Greer': 'Hal_Greer',
   'Jason Kelce': 'Jason_Kelce', 'Reggie White': 'Reggie_White', 'Larry Bowa': 'Larry_Bowa',
 };
+
+/* Philadelphia icons for the landing page (photos are loaded live from Wikipedia / Wikimedia Commons) */
+CUR.icons = [
+  { wiki: 'Independence_Hall', name: 'Independence Hall', tag: 'Birthplace of the nation', fact: `The Declaration of Independence was adopted here in 1776, and the U.S. Constitution was drafted in the same building in 1787. It is a UNESCO World Heritage Site.` },
+  { wiki: 'Liberty_Bell', name: 'Liberty Bell', tag: 'Symbol of freedom', fact: `Cast in 1752 for the Pennsylvania State House. Its famous crack gave it its silence, and abolitionists in the 1830s adopted it as a symbol of liberty and named it the "Liberty Bell."` },
+  { wiki: 'Rocky_Balboa', file: 'Rocky Balboa Statue in Philadelphia.jpg', name: 'Rocky Balboa', tag: 'The underdog who ran the steps', fact: `Sylvester Stallone's underdog boxer put Philadelphia on screen in Rocky, the 1976 film that won Best Picture. The bronze Rocky statue, made for Rocky III, now stands beside the museum steps where fans still pose with raised fists.` },
+  { wiki: 'Philadelphia_Museum_of_Art', file: 'PhiladelphiaMuseumOfArt2017.jpg', name: 'The Art Museum', tag: 'The Rocky Steps', fact: `The Greek Revival Philadelphia Museum of Art opened in 1928 at the end of the Benjamin Franklin Parkway. Its 72 front steps are the "Rocky Steps": runners sprint to the top and turn around for the skyline view.` },
+  { wiki: 'Philadelphia_cheesesteak', name: 'The Cheesesteak', tag: 'Philly on a roll', fact: `Thin-sliced steak on a long roll, invented around 1930 in South Philly by hot-dog vendor Pat Olivieri. Order it "whiz wit" (Cheez Whiz, with onions) and you sound like a local. Pat's and Geno's face each other at 9th and Passyunk.` },
+  { wiki: 'Philadelphia_City_Hall', name: 'City Hall & Billy Penn', tag: 'The Curse of Billy Penn', fact: `William Penn's 37-foot bronze statue tops the tallest masonry building without a steel frame. For 100 years nothing was built taller than Penn's hat. Fans blamed a title drought on that rule ending in 1987. The Phillies broke it in 2008, a year after a small Penn statue topped the new Comcast Center.` },
+  { wiki: 'Boathouse_Row', name: 'Boathouse Row', tag: 'Along the Schuylkill', fact: `A line of Victorian rowing clubhouses on the Schuylkill River that are outlined in lights every night. It is home to the Schuylkill Navy, one of the oldest amateur athletic associations in the country.` },
+];
+CUR.phillyFacts = [
+  [`First capital`, `Philadelphia served as the nation's capital from 1790 to 1800 while Washington, D.C. was being built.`],
+  [`Ben Franklin's city`, `Franklin founded the first lending library in America here (1731), plus the University of Pennsylvania and the first American fire company.`],
+  [`Mummers Parade`, `Every New Year's Day, string bands and costumed clubs strut down Broad Street in one of the country's oldest folk festivals.`],
+  [`Wawa`, `The convenience-store chain started as a dairy in 1902 and opened its first store in 1964. Locals argue about Wawa versus Sheetz the way they argue about sports.`],
+  [`The Sports Complex`, `The Linc, Citizens Bank Park and the Wells Fargo Center sit side by side in South Philadelphia, so Eagles, Phillies, 76ers and Flyers fans share one parking lot.`],
+  [`City of Brotherly Love`, `The name comes from the Greek "philos" and "adelphos," chosen by William Penn when he founded the city in 1682.`],
+];

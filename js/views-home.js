@@ -44,13 +44,16 @@ async function viewHome({ mount, alive }) {
         <h1>Philly sports.<br><em>Live &amp; all-time.</em></h1>
         <p class="lede">Rosters, depth charts, contracts and scores, live. Then travel back to ${yr.min}: every Eagles, Phillies and 76ers season, with the coaches, the results and the stories.</p>
         <div class="row" style="margin-top:22px">
-          <a class="btn primary" style="--team:#0b1a30" href="#/history">Explore franchise history</a>
+          <a class="btn primary" style="--team:#0b1a30" href="#/history">Franchise overview</a>
           <a class="btn" href="#/year">Year Explorer</a>
           <a class="btn" href="#/shop">Shop fan gear</a>
         </div>
+        <form class="yearjump" id="yjForm" style="margin-top:14px" autocomplete="off"><input type="number" id="yjIn" inputmode="numeric" min="${yr.min}" max="${new Date().getFullYear()}" placeholder="Jump to any year" aria-label="Jump to a year"><button type="submit">Jump →</button></form>
+        <div class="yj-hint">Try <a href="#/year/1980">1980</a> · <a href="#/year/1993">1993</a> · <a href="#/year/2008">2008</a> · <a href="#/year/2017">2017</a> · <a href="#/year/2024">2024</a></div>
       </div>
       <div class="hero-tiles" id="heroTiles">${TEAM_KEYS.map(k => `<a class="hero-tile" href="#/team/${k}" style="--c1:${TEAMS[k].primary}"><img src="${teamLogoOn(TEAMS[k])}" alt=""><div><div class="nm">${TEAMS[k].nick}</div><div class="sub">${TEAMS[k].sportName} · ${H.titles(k).length} titles · since ${TEAMS[k].since}</div></div><div class="rc">—<small>Record</small></div></a>`).join('')}</div>
     </div></section>
+    <div id="iconStrip"></div>
     <section class="tm" id="tm">
       <div class="tm-top"><div><h2>Time machine</h2><p class="sub">Pick any year from ${yr.min} to today. See how the Eagles, Phillies and 76ers did, who won the title, then open the year for the players, stats and stories.</p></div><div class="tm-year" id="tmYear">1980</div></div>
       <input type="range" id="tmRange" min="${yr.min}" max="${new Date().getFullYear()}" value="1980" aria-label="Pick a year">
@@ -62,9 +65,12 @@ async function viewHome({ mount, alive }) {
     </section>    <div id="liveStrip"></div>
     <section class="section"><h2>Game day</h2><div class="grid g3" id="teamCards">${TEAM_KEYS.map(k => `<div class="card">${spinner()}</div>`).join('')}</div></section>
     <section class="section"><h2>Headlines</h2><div id="homeNews">${spinner('Loading headlines…')}</div></section>
+    <section class="section"><h2>Only in Philadelphia</h2><p class="section-sub">The city behind the teams. Click a photo for the story.</p><div id="iconCards">${spinner('Loading photos…')}</div>
+      <div class="factgrid">${CUR.phillyFacts.map(([a, b]) => `<div class="fact"><b>${esc(a)}.</b> ${esc(b)}</div>`).join('')}</div>
+      <p class="disc">Photos from Wikimedia Commons via Wikipedia; each article lists the photographer and license. Facts are summarized from public sources.</p></section>
     <section class="section"><h2>Championship banners</h2><div class="grid g3">${TEAM_KEYS.map(k => `<div class="card"><div class="row between" style="margin-bottom:12px"><h3 style="margin:0"><img src="${teamLogo(TEAMS[k])}" width="34" height="34" alt=""> ${TEAMS[k].nick}</h3><span class="badge gold">${H.titles(k).length} titles</span></div>${bannerWall(k)}<a class="btn small ghost" style="margin-top:14px" href="#/team/${k}/history">Full history →</a></div>`).join('')}</div></section>
     <section class="section"><h2>Explore</h2><div class="grid g4">
-      ${[['#/history', '📜', 'Franchise history', 'Filter every season by team, decade, result and coach.'],
+      ${[['#/history', '📜', 'Franchise overview', 'The three franchises: titles, timelines and every season.'],
       ['#/year', '🗓️', 'Year Explorer', 'Pick any year and see how all three teams did.'],
       ['#/stadiums', '🏟️', 'Stadiums', 'Current homes and the parks of the past.'],
       ['#/shop', '🛍️', 'Team shop', 'Jerseys, hats and more at Fanatics and official stores.']]
@@ -89,6 +95,17 @@ async function viewHome({ mount, alive }) {
   $('#tmNum').addEventListener('keydown', e => { if (e.key === 'Enter') location.hash = `#/year/${$('#tmNum').value}`; });
   $('#tmDecs').addEventListener('click', e => { const b = e.target.closest('button'); if (b) tmUpdate(b.dataset.y); });
   tmUpdate(1980);
+
+  $('#yjForm').addEventListener('submit', e => {
+    e.preventDefault(); const v = +$('#yjIn').value, max = new Date().getFullYear();
+    if (v >= yr.min && v <= max) location.hash = `#/year/${v}`; else { toast(`Enter a year between ${yr.min} and ${max}`); $('#yjIn').focus(); }
+  });
+  phillyIcons().then(list => {
+    if (!alive()) return;
+    $('#iconStrip').innerHTML = phillyIconTiles(list.slice(0, 6));
+    $('#iconCards').innerHTML = phillyIconCards(list);
+  });
+  phillySkyline().then(url => { if (!alive() || !url) return; const h = $('.hero'); h.style.setProperty('--skyline', `url('${url}')`); h.classList.add('photo'); });
   const draw = async () => {
     const stats = await Promise.all(TEAM_KEYS.map(async k => {
       const t = TEAMS[k];

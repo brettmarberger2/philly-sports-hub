@@ -81,10 +81,10 @@ async function historyExplorer({ mount, alive, q, teams, fixedTeam }) {
 /* ---------- History hub ---------- */
 async function viewHistoryHub({ q, mount, alive }) {
   const yr = H.years(), tot = TEAM_KEYS.map(k => ({ k, ...H.totals(k) }));
-  mount.innerHTML = `<div class="hero slim"><div class="tri"><span></span><span></span><span></span></div><h1>Franchise history</h1><p class="lede" style="margin:0">Every season since ${yr.min}. Use the <b>Timeline</b> to see the big years and click any of them, or switch to the <b>Table</b> to filter and sort.</p></div>
+  mount.innerHTML = `<div class="hero slim"><div class="tri"><span></span><span></span><span></span></div><h1>Franchise overview</h1><p class="lede" style="margin:0">Every season since ${yr.min}. Use the <b>Timeline</b> to see the big years and click any of them, or switch to the <b>Table</b> to filter and sort.</p></div>
     <div class="section"><h2>The three franchises</h2><div class="grid g3">${tot.map(x => `<a class="card" href="#/team/${x.k}/history" style="border-top:5px solid ${TEAM_HEX[x.k]}"><div class="row" style="gap:12px;margin-bottom:10px"><img src="${teamLogo(TEAMS[x.k])}" width="46" height="46" alt=""><div><h3 style="margin:0">${TEAMS[x.k].nick}</h3><div class="muted small">${fmtInt(x.seasons)} seasons since ${TEAMS[x.k].since}</div></div></div>
       <div class="row" style="gap:22px"><div><div style="font-family:var(--display);font-size:2rem;font-weight:700;line-height:1;color:var(--gold)">${x.titles}</div><div class="muted small">titles</div></div><div><div style="font-family:var(--display);font-size:2rem;font-weight:700;line-height:1">${x.titles + x.finals}</div><div class="muted small">finals trips</div></div><div><div style="font-family:var(--display);font-size:2rem;font-weight:700;line-height:1">${fmtInt(x.playoffs)}</div><div class="muted small">playoff seasons</div></div></div></a>`).join('')}</div></div>
-    <div class="section"><h2>Explore every season</h2><div id="hx"></div></div>`;
+    <div class="section"><h2>Season by season</h2><div id="hx"></div></div>`;
   await historyExplorer({ mount: $('#hx'), alive, q, teams: TEAM_KEYS });
 }
 

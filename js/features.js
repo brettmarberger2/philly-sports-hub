@@ -136,33 +136,38 @@ function tlDetailHtml(key, year) {
 }
 
 function timelineCardHtml(key) {
-  const t = TEAMS[key], ss = H.seasons(key), notes = CUR.notes[key] || {};
-  const W = 20, LAB = 44, minY = ss[0].year, maxY = ss.at(-1).year, xOf = y => (y - minY) * W + W / 2 + 10, width = (maxY - minY + 1) * W + 20;
-  const place = (list, levels, minGap) => { const last = Array(levels).fill(-1e9); return list.map(s => { const x = xOf(s.year); let lv = last.findIndex(v => x - v >= minGap); if (lv < 0) lv = last.indexOf(Math.min(...last)); last[lv] = x; return { s, x, lv }; }); };
-  const shortRes = s => { const g = H.champ(t, s.year)?.game || ''; if (s.result === 'champion') return g.replace('NFL Championship', 'NFL Champs').replace('NBA Finals', 'NBA Champs').replace('World Series', 'World Series'); const o = H.outcome(s); return o.replace(/^Lost /, 'Lost ').slice(0, 22); };
-  const above = place(ss.filter(s => s.result === 'champion'), 3, 96), below = place(ss.filter(s => s.result !== 'champion' && (s.result === 'finalist' || notes[s.year])), 2, 104);
-  const maxA = above.length ? Math.max(...above.map(a => a.lv)) : -1, maxB = below.length ? Math.max(...below.map(b => b.lv)) : -1;
-  const BASE = 34 + LAB + 20 + Math.max(0, maxA) * (LAB + 8), HEIGHT = BASE + 44 + (maxB + 1) * (LAB + 8) + 26;
-  const pinsA = above.map(({ s, x, lv }) => { const top = BASE - 34 - LAB - lv * (LAB + 8); return `<button class="pin champion" data-y="${s.year}" style="left:${x}px;top:${top}px"><span class="lab"><b>${esc(H.label(t, s))}</b>${esc(shortRes(s))}</span><span class="stem" style="height:${BASE - 8 - (top + LAB)}px"></span></button>`; }).join('');
-  const pinsB = below.map(({ s, x, lv }) => { const stem = 26 + lv * (LAB + 8); const sub = s.result === 'finalist' ? shortRes(s) : (notes[s.year]?.t || '').slice(0, 24); return `<button class="pin ${s.result === 'finalist' ? 'finalist' : 'moment'}" data-y="${s.year}" style="left:${x}px;top:${BASE + 8}px"><span class="stem" style="height:${stem}px"></span><span class="lab"><b>${esc(H.label(t, s))}</b>${esc(sub)}</span></button>`; }).join('');
-  const ticks = ss.map(s => `<button class="tick ${s.result}" data-y="${s.year}" title="${esc(H.label(t, s))}: ${H.record(t, s)} · ${esc(H.outcome(s))}" style="left:${xOf(s.year)}px;top:${BASE - (s.result === 'champion' ? 8 : 6)}px"></button>`).join('');
-  const decs = ss.filter(s => s.year % 10 === 0).map(s => `<span class="dec" style="left:${xOf(s.year)}px;top:${BASE + 14}px">${s.year}</span>`).join('');
-  return `<div class="card tlcard" data-tl="${key}"><div class="hd"><img src="${teamLogo(t)}" alt=""><h3>${esc(t.nick)}</h3><span class="badge gold">${H.titles(key).length} titles</span><span class="muted small">${minY}–${maxY}</span></div>
-    <div class="tlhint">Scroll sideways. Gold = champions, orange = lost the finals, green = made the playoffs. Click any dot or label.</div>
-    <div class="railwrap"><div class="rail" style="width:${width}px;height:${HEIGHT}px"><div class="base" style="top:${BASE - 1.5}px"></div>${decs}${ticks}${pinsA}${pinsB}</div></div>
-    <div class="tldetail" id="tld-${key}"></div></div>`;
+  const t = TEAMS[key], ss = H.seasons(key), notes = CUR.notes[key] || {}, byY = new Map(ss.map(s => [s.year, s]));
+  const lbl = s => (t.league === 'nba' ? `${String(s.year).slice(2)}–${String(s.year + 1).slice(2)}` : String(s.year));
+  const minDec = Math.floor(ss[0].year / 10) * 10, maxDec = Math.floor(ss.at(-1).year / 10) * 10;
+  const tile = s => (s ? `<button class="yt ${s.result}" data-y="${s.year}" title="${esc(H.label(t, s))}: ${H.record(t, s)} · ${esc(H.outcome(s))}"><b>${lbl(s)}</b><small>${H.record(t, s)}</small>${s.result === 'champion' ? '<i class="star">★</i>' : ''}</button>` : '<span class="yt empty"></span>');
+  let rows = '';
+  for (let d = maxDec; d >= minDec; d -= 10) rows += `<div class="drow"><div class="dl">${d}s</div>${Array.from({ length: 10 }, (_, i) => tile(byY.get(d + i))).join('')}</div>`;
+  const chip = (s, cls, sub) => `<button class="bigchip ${cls}" data-y="${s.year}">${esc(H.label(t, s))}<span>${esc(sub)}</span></button>`;
+  const champs = H.titles(key).slice().reverse(), finals = H.finals(key).slice().reverse();
+  const moments = ss.filter(s => notes[s.year] && s.result !== 'champion' && s.result !== 'finalist').reverse();
+  return `<div class="card tlcard tl2" data-tl="${key}"><div class="hd"><img src="${teamLogo(t)}" alt=""><h3>${esc(t.nick)}</h3><span class="badge gold">${champs.length} titles</span><span class="muted small">${ss[0].year}–${ss.at(-1).year} · newest first</span></div>
+    <div class="tl2-body"><div class="tl2-right"><div class="tldetail" id="tld-${key}"></div></div>
+      <div class="tl2-left">
+        <div class="bigrow"><div class="bl">Championships</div><div class="chipwrap">${champs.map(s => chip(s, 'gold', (H.champ(t, s.year)?.game || 'Champions').replace('NFL Championship', 'NFL title'))).join('') || '<span class="muted small">None yet</span>'}</div></div>
+        <div class="bigrow"><div class="bl">Lost in the finals</div><div class="chipwrap">${finals.map(s => chip(s, 'orange', H.outcome(s).replace(/^Lost /, ''))).join('') || '<span class="muted small">None</span>'}</div></div>
+        ${moments.length ? `<div class="bigrow"><div class="bl">Other big moments</div><div class="chipwrap">${moments.map(s => chip(s, 'plain', notes[s.year].t)).join('')}</div></div>` : ''}
+        <div class="bl" style="margin:18px 0 8px">Every season</div>
+        <div class="tl2-legend"><span><i class="yt champion"></i>Champions</span><span><i class="yt finalist"></i>Lost finals</span><span><i class="yt playoffs"></i>Playoffs</span><span><i class="yt"></i>Missed</span></div>
+        <div class="decs2">${rows}</div>
+      </div></div></div>`;
 }
 function wireTimelines(root) {
   $$('.tlcard[data-tl]', root).forEach(card => {
-    const key = card.dataset.tl, panel = $('.tldetail', card), wrap = $('.railwrap', card);
-    const select = y => { $$('.sel', card).forEach(e => e.classList.remove('sel')); $$(`[data-y="${y}"]`, card).forEach(e => e.classList.add('sel')); panel.innerHTML = tlDetailHtml(key, y); };
-    card.addEventListener('click', e => { const b = e.target.closest('[data-y]'); if (b) select(+b.dataset.y); });
-    const latest = H.titles(key).slice(-1)[0] || H.seasons(key).slice(-1)[0];
-    select(latest.year);
-    const sel = $('.tick.sel', card); if (sel) wrap.scrollLeft = Math.max(0, sel.offsetLeft - wrap.clientWidth / 2);
+    const key = card.dataset.tl, panel = $('.tldetail', card);
+    const select = (y, scroll) => {
+      $$('.sel', card).forEach(e => e.classList.remove('sel')); $$(`[data-y="${y}"]`, card).forEach(e => e.classList.add('sel'));
+      panel.innerHTML = tlDetailHtml(key, y);
+      if (scroll && innerWidth <= 960) panel.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+    };
+    card.addEventListener('click', e => { const b = e.target.closest('[data-y]'); if (b) select(+b.dataset.y, true); });
+    select((H.titles(key).slice(-1)[0] || H.seasons(key).slice(-1)[0]).year, false);
   });
 }
-
 /* ---------- Where does this year sit in time? ---------- */
 function yearContextHtml(year) {
   const yr = H.years(), cur = new Date().getFullYear(), min = yr.min, max = cur, pctX = y => ((y - min) / (max - min)) * 100;
@@ -176,4 +181,37 @@ function yearContextHtml(year) {
       <div class="legend" style="margin:0">${TEAM_KEYS.map(k => `<span><i style="background:${TEAM_HEX[k]};border-radius:50%"></i>${TEAMS[k].nick}</span>`).join('')}</div></div>
     <div class="axis"><div class="line"></div>${lbls.join('')}${mk}<div class="cur" style="left:${pctX(Math.min(max, Math.max(min, year)))}%"><span>${year}</span></div></div>
     <div class="row small muted" style="gap:20px">${prev ? `<span>◀ Previous Philly title: <a href="javascript:void(0)" data-moment data-team="${prev.k}" data-year="${prev.year}"><b>${prev.year} ${TEAMS[prev.k].nick}</b></a> (${year - prev.year} yrs earlier)</span>` : '<span>No Philly title before this year.</span>'}${here.length ? `<span>🏆 This year: ${here.map(x => `<a href="javascript:void(0)" data-moment data-team="${x.k}" data-year="${x.year}"><b>${TEAMS[x.k].nick}</b></a>`).join(', ')}</span>` : ''}${next ? `<span>Next Philly title: <a href="javascript:void(0)" data-moment data-team="${next.k}" data-year="${next.year}"><b>${next.year} ${TEAMS[next.k].nick}</b></a> (${next.year - year} yrs later) ▶</span>` : ''}</div></div>`;
+}
+
+/* ---------- Philadelphia icons (landing page) ---------- */
+let _phillyIcons = null;
+function phillyIcons() {
+  if (_phillyIcons) return _phillyIcons;
+  const big = (thumb, w) => (thumb ? thumb.split('?')[0].replace(/\/\d+px-/, `/${w}px-`) : null);
+  _phillyIcons = Promise.all(CUR.icons.map(async i => {
+    const j = await safe(getJSON(`https://en.wikipedia.org/api/rest_v1/page/summary/${i.wiki}`, 604800), null);
+    const img = i.file ? `https://commons.wikimedia.org/wiki/Special:FilePath/${encodeURIComponent(i.file)}?width=960` : big(j?.thumbnail?.source, 960);
+    return { ...i, img, page: j?.content_urls?.desktop?.page || `https://en.wikipedia.org/wiki/${i.wiki}`, extract: j?.extract || '' };
+  }));
+  return _phillyIcons;
+}
+async function phillySkyline() {
+  const j = await safe(getJSON('https://en.wikipedia.org/api/rest_v1/page/summary/Philadelphia', 604800), null);
+  return j?.thumbnail?.source ? j.thumbnail.source.split('?')[0].replace(/\/\d+px-/, '/1920px-') : null;
+}
+async function openIcon(idx) {
+  const it = (await phillyIcons())[idx]; if (!it) return;
+  openModal(`<div style="height:280px;background:#0b1a30 center/cover;${it.img ? `background-image:url('${esc(it.img)}')` : ''}"></div>
+    <div class="pl-body"><div class="small muted" style="letter-spacing:.1em;text-transform:uppercase;font-weight:700">${esc(it.tag)}</div><h2 style="margin:4px 0 12px">${esc(it.name)}</h2>
+    <p class="story">${esc(it.fact)}</p>${it.extract ? `<h4>From Wikipedia</h4><p>${esc(it.extract)}</p>` : ''}
+    <div class="row"><a class="btn" href="${esc(it.page)}" target="_blank" rel="noopener">Read more on Wikipedia ↗</a></div>
+    <p class="disc">Photo from Wikimedia Commons via Wikipedia; open the article for the author and license.</p></div>`);
+}
+document.addEventListener('click', e => { const ic = e.target.closest('[data-icon]'); if (ic) { e.preventDefault(); openIcon(+ic.dataset.icon); } });
+
+function phillyIconTiles(list) {
+  return `<div class="icon-strip">${list.map((it, i) => `<button class="itile" data-icon="${i}" style="${it.img ? `background-image:url('${esc(it.img)}')` : ''}" aria-label="${esc(it.name)}"><span class="cap"><b>${esc(it.name)}</b><small>${esc(it.tag)}</small></span></button>`).join('')}</div>`;
+}
+function phillyIconCards(list) {
+  return `<div class="icards">${list.map((it, i) => `<article class="icard"><button class="ph" data-icon="${i}" style="${it.img ? `background-image:url('${esc(it.img)}')` : ''}" aria-label="Open ${esc(it.name)}"></button><div class="bd"><div class="small muted" style="text-transform:uppercase;letter-spacing:.09em;font-weight:800;font-size:.68rem">${esc(it.tag)}</div><h3>${esc(it.name)}</h3><p>${esc(it.fact)}</p><a href="${esc(it.page)}" target="_blank" rel="noopener" class="small" style="font-weight:700">Learn more ↗</a></div></article>`).join('')}</div>`;
 }
