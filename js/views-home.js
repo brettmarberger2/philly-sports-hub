@@ -53,7 +53,6 @@ async function viewHome({ mount, alive }) {
       </div>
       <div class="hero-tiles" id="heroTiles">${TEAM_KEYS.map(k => `<a class="hero-tile" href="#/team/${k}" style="--c1:${TEAMS[k].primary}"><img src="${teamLogoOn(TEAMS[k])}" alt=""><div><div class="nm">${TEAMS[k].nick}</div><div class="sub">${TEAMS[k].sportName} · ${H.titles(k).length} titles · since ${TEAMS[k].since}</div></div><div class="rc">—<small>Record</small></div></a>`).join('')}</div>
     </div></section>
-    <div id="iconStrip"></div>
     <section class="tm" id="tm">
       <div class="tm-top"><div><h2>Time machine</h2><p class="sub">Pick any year from ${yr.min} to today. See how the Eagles, Phillies and 76ers did, who won the title, then open the year for the players, stats and stories.</p></div><div class="tm-year" id="tmYear">1980</div></div>
       <input type="range" id="tmRange" min="${yr.min}" max="${new Date().getFullYear()}" value="1980" aria-label="Pick a year">
@@ -64,10 +63,10 @@ async function viewHome({ mount, alive }) {
       <div class="go"><a class="btn go-btn" id="tmGo" href="#/year/1980">Open 1980 →</a><span class="small" style="color:#ffffffb0">or type a year</span><input type="number" id="tmNum" min="${yr.min}" max="${new Date().getFullYear()}" value="1980" style="width:100px"></div>
     </section>    <div id="liveStrip"></div>
     <section class="section"><h2>Game day</h2><div class="grid g3" id="teamCards">${TEAM_KEYS.map(k => `<div class="card">${spinner()}</div>`).join('')}</div></section>
-    <section class="section"><h2>Headlines</h2><div id="homeNews">${spinner('Loading headlines…')}</div></section>
-    <section class="section"><h2>Only in Philadelphia</h2><p class="section-sub">The city behind the teams. Click a photo for the story.</p><div id="iconCards">${spinner('Loading photos…')}</div>
+    <section class="section"><h2>Only in Philadelphia</h2><p class="section-sub">Beyond the scoreboard: the landmarks, the food and the movie that made the city. Click any photo for the story.</p><div id="iconCards">${spinner('Loading photos…')}</div>
       <div class="factgrid">${CUR.phillyFacts.map(([a, b]) => `<div class="fact"><b>${esc(a)}.</b> ${esc(b)}</div>`).join('')}</div>
       <p class="disc">Photos from Wikimedia Commons via Wikipedia; each article lists the photographer and license. Facts are summarized from public sources.</p></section>
+    <section class="section"><h2>Headlines</h2><div id="homeNews">${spinner('Loading headlines…')}</div></section>
     <section class="section"><h2>Championship banners</h2><div class="grid g3">${TEAM_KEYS.map(k => `<div class="card"><div class="row between" style="margin-bottom:12px"><h3 style="margin:0"><img src="${teamLogo(TEAMS[k])}" width="34" height="34" alt=""> ${TEAMS[k].nick}</h3><span class="badge gold">${H.titles(k).length} titles</span></div>${bannerWall(k)}<a class="btn small ghost" style="margin-top:14px" href="#/team/${k}/history">Full history →</a></div>`).join('')}</div></section>
     <section class="section"><h2>Explore</h2><div class="grid g4">
       ${[['#/history', '📜', 'Franchise overview', 'The three franchises: titles, timelines and every season.'],
@@ -102,7 +101,6 @@ async function viewHome({ mount, alive }) {
   });
   phillyIcons().then(list => {
     if (!alive()) return;
-    $('#iconStrip').innerHTML = phillyIconTiles(list.slice(0, 6));
     $('#iconCards').innerHTML = phillyIconCards(list);
   });
   phillySkyline().then(url => { if (!alive() || !url) return; const h = $('.hero'); h.style.setProperty('--skyline', `url('${url}')`); h.classList.add('photo'); });

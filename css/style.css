@@ -486,3 +486,4 @@ html { scroll-behavior: auto; } @media (max-width: 960px) { .brand span.t { disp
   .tl2-right .tldetail { position: static; }
   .drow { grid-template-columns: repeat(5, minmax(0, 1fr)); } .drow .dl { grid-column: 1 / -1; margin-top: 6px; }
 }
+.hero:not(.slim) { padding-bottom: 46px; } .hero + .tm { margin-top: 26px; }
