@@ -33,13 +33,20 @@ Object.assign(API, {
       ].filter(x => x.rows.length) };
     }
     if (t.league === 'nba') {
-      const j = await safe(getJSON(`${ESPN.common(t)}/statistics/byathlete?region=us&lang=en&contentorigin=espn&isqualified=false&limit=40&team=${t.espnId}&season=${espnSeason(t, year ?? new Date().getFullYear() - (new Date().getMonth() < 8 ? 1 : 0))}&seasontype=2&sort=offensive.avgPoints%3Adesc`, ttl), null);
+      // ESPN ignores a team filter on player stats and tags players with their CURRENT team, so identify who actually
+      // played for this team that season from the team's own season leaders, then pull those players' full lines.
+      const season = espnSeason(t, year ?? new Date().getFullYear() - (new Date().getMonth() < 8 ? 1 : 0));
+      const lj = await safe(getJSON(`${ESPN.core(t)}/seasons/${season}/types/2/teams/${t.espnId}/leaders`, ttl), null);
+      const ids = new Set(); (lj?.categories || []).forEach(c => (c.leaders || []).forEach(l => { const m = (l.athlete?.$ref || '').match(/athletes\/(\d+)/); if (m) ids.add(m[1]); }));
+      const pageUrl = p => `${ESPN.common(t)}/statistics/byathlete?region=us&lang=en&contentorigin=espn&isqualified=false&limit=500&page=${p}&season=${season}&seasontype=2&sort=offensive.avgPoints%3Adesc`;
+      const pages = ids.size ? await Promise.all([1, 2].map(p => safe(getJSON(pageUrl(p), ttl), null))) : [];
+      const j = { athletes: pages.flatMap(p => p?.athletes || []).filter(a => ids.has(String(a.athlete.id))) };
       const spec = [['GP', 'general', 0], ['MIN', 'general', 1], ['PTS', 'offensive', 0], ['REB', 'general', 11], ['AST', 'offensive', 10], ['STL', 'defensive', 0], ['BLK', 'defensive', 1], ['FG%', 'offensive', 3], ['3P%', 'offensive', 6], ['FT%', 'offensive', 9]];
       const rows = (j?.athletes || []).map(a => {
         const cat = n => a.categories?.find(c => c.name === n)?.totals || [];
         return { id: a.athlete.id, name: a.athlete.displayName, pos: a.athlete.position?.abbreviation || '', v: Object.fromEntries(spec.map(([k, c, i]) => [k, cat(c)[i] ?? ''])) };
       }).filter(r => r.v.GP && r.v.GP !== '-');
-      return { tables: rows.length ? [{ key: 'pergame', name: 'Per game', cols: spec.map(s => s[0]), rows, sortKey: 'PTS' }] : [] };
+      return { ids, tables: rows.length ? [{ key: 'pergame', name: 'Per game', cols: spec.map(s => s[0]), rows, sortKey: 'PTS' }] : [] };
     }
     // NFL: ranked lists from the season leaders feed (works for past seasons too)
     const season = espnSeason(t, year ?? new Date().getFullYear());
@@ -49,7 +56,7 @@ Object.assign(API, {
     const refs = uniq(cats.flatMap(x => x.c.leaders.map(l => l.athlete?.$ref)).filter(Boolean));
     const names = {};
     await pool(refs, 10, async ref => { const a = await safe(getJSON(httpsify(ref), 86400), null); names[ref] = { name: a?.displayName || a?.fullName || '', pos: a?.position?.abbreviation || '', id: a?.id }; });
-    return { tables: cats.map(({ label, c }) => ({
+    return { ids: new Set(Object.values(names).map(n => String(n.id))), tables: cats.map(({ label, c }) => ({
       key: label.toLowerCase(), name: label, cols: ['Stat line'], sortKey: null,
       rows: c.leaders.slice(0, 12).map(l => { const m = names[l.athlete?.$ref] || {}; return { id: m.id, name: m.name, pos: m.pos, v: { 'Stat line': l.displayValue } }; }).filter(r => r.name),
     })).filter(x => x.rows.length) };

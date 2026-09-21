@@ -1,6 +1,6 @@
 /* Team page shell + live-data tabs: overview, roster, depth chart, contracts, stats, schedule */
 const TAB_LIST = [
-  ['overview', 'Overview'], ['roster', 'Roster'], ['depth', 'Depth Chart'], ['contracts', 'Contracts'], ['stats', 'Stats'], ['schedule', 'Schedule & Results'],
+  ['overview', 'Overview'], ['picture', 'Standings & Playoffs'], ['roster', 'Roster'], ['depth', 'Depth Chart'], ['contracts', 'Contracts'], ['stats', 'Stats'], ['schedule', 'Schedule & Results'],
   ['coaches', 'Coaches'], ['history', 'History'], ['legends', 'Legends'], ['stadium', 'Stadium'], ['shop', 'Shop'],
 ];
 const yearLabel = (t, y) => (t.league === 'nba' ? `${y - 1}–${String(y).slice(2)}` : String(y));
@@ -30,7 +30,7 @@ async function viewTeam({ parts, q, mount, alive }) {
     $('#headStats').innerHTML = `<div class="big-stat"><div class="v">${has ? esc(info.summary) : '—'}</div><div class="l">Record</div></div>
       <div class="big-stat"><div class="v" style="font-size:1.4rem;padding-top:6px">${esc(info.standingSummary || '—')}</div><div class="l">Standing</div></div>`;
   });
-  const fn = { overview: tabOverview, roster: tabRoster, depth: tabDepth, contracts: tabContracts, stats: tabStats, schedule: tabSchedule, coaches: tabCoaches, history: tabHistory, legends: tabLegends, stadium: tabStadium, shop: tabShop }[tab];
+  const fn = { overview: tabOverview, picture: tabPicture, roster: tabRoster, depth: tabDepth, contracts: tabContracts, stats: tabStats, schedule: tabSchedule, coaches: tabCoaches, history: tabHistory, legends: tabLegends, stadium: tabStadium, shop: tabShop }[tab];
   await fn(t, { mount: $('#tabBody'), q, alive, key });
   if (alive()) $('#tabBody').style.minHeight = '';
   if (alive()) $('#tabBody').style.minHeight = '';
@@ -61,6 +61,7 @@ async function tabOverview(t, { mount, alive }) {
       <div class="card"><h3>Team leaders</h3><div id="ovLead">${spinner()}</div></div>
       <div class="card"><h3>Latest news</h3><div id="ovNews">${spinner()}</div></div>
     </div><div class="stack">
+      <div class="card" id="ovPicture">${spinner('Loading playoff picture…')}</div>
       <div class="card" id="ovOutlook">${spinner('Building outlook…')}</div>
       <div class="card" id="ovCoach"></div>
       <div class="card"><h3>Franchise at a glance</h3>${glanceHtml(t)}</div>
@@ -68,6 +69,7 @@ async function tabOverview(t, { mount, alive }) {
     </div></div>`;
   const infoP = safe(API.team(t)), gsP = safe(API.gameStatus(t)), rosterP = safe(API.roster(t)), stdP = safe(API.standings(t)), leadP = safe(API.leaders(t), []), newsP = safe(API.news(t, 6), []);
 
+  safe(API.picture(t), null).then(pic => { if (alive()) $('#ovPicture').innerHTML = pic ? pictureCardHtml(pic, t) : '<h3>Playoff picture</h3><div class="muted small">Standings are not available right now.</div>'; });
   const drawGames = async () => {
     const gs = await gsP; if (!alive() || !gs) { if (alive()) $('#ovGames').innerHTML = errBox('Schedule data unavailable.'); return; }
     const played = gs.games.filter(g => g.state === 'post' && (g.stype !== 1 || gs.games.every(x => x.stype === 1)));
@@ -235,14 +237,32 @@ async function tabContractsMlb(t, { mount, alive }) {
 
 /* ---------- Stats ---------- */
 async function tabStats(t, { mount, alive }) {
-  const [s, std] = await Promise.all([safe(API.teamStats(t)), safe(API.standings(t))]); if (!alive()) return;
+  const isMlb = !!t.mlbId;
+  const [s, roster, nbaTbl] = await Promise.all([safe(API.teamStats(t)), safe(API.roster(t)), t.league === 'nba' ? safe(API.nbaTable()) : Promise.resolve(null)]); if (!alive()) return;
+  const rmap = new Map((roster?.players || []).map(p => [normName(p.name), p.id]));
+  const nbaStart = nbaTbl ? (nbaTbl.fallback ? nbaTbl.year : nbaTbl.year) : null;
+  const seasons = isMlb ? [] : t.league === 'nba' ? [[nbaStart, `${nbaStart}–${String(nbaStart + 1).slice(2)}${nbaTbl?.fallback ? ' (last season)' : ''}`], [nbaStart - 1, `${nbaStart - 1}–${String(nbaStart).slice(2)}`]] : [[null, `${nowYear()} season`], [nowYear() - 1, `${nowYear() - 1}`]];
   mount.innerHTML = `
-    <div class="section" style="margin-top:0"><h2>Player stats</h2><p class="section-sub">Click any player for career stats, contract and bio.</p><div class="card" id="pstats"></div></div>
-    <div class="section"><h2>Stars this season</h2><div id="starsBox">${spinner()}</div></div>
+    <div class="section" style="margin-top:0"><h2>${isMlb ? 'Player performance' : 'Player stats'}</h2><p class="section-sub">${isMlb ? 'Every hitter and pitcher graded against the league, with who is hot and who is struggling.' : 'Click any player for career stats, contract and bio.'}</p>
+      ${isMlb ? '<div id="pstats"></div>' : `<div class="filters" style="padding:10px 14px"><div class="seg" id="ysSeg">${seasons.map(([y, l], i) => `<button data-i="${i}" class="${i === 0 ? 'on' : ''}">${l}</button>`).join('')}</div>${nbaTbl?.fallback ? `<span class="muted small">The new NBA season hasn't started, so this is last season.</span>` : ''}${t.league !== 'mlb' ? `<span class="muted small">Shows the team's season leaders and the players who played for the team that year; players with very few games can be missing.</span>` : ''}</div><div class="card" id="pstats"></div>`}</div>
+    ${isMlb ? '' : `<div class="section"><h2>${t.nick} in the league's top 10</h2><div id="rankBox">${spinner()}</div></div><div class="section"><h2>Stars of the season</h2><div id="starsBox">${spinner()}</div></div>`}
     <div class="section"><h2>Team statistics</h2>
-    ${s?.cats?.length ? `<div class="filters"><div class="chips" id="sideChips"><button class="chip on" data-s="team">${esc(t.nick)}</button><button class="chip" data-s="opp">Opponents</button></div><span class="muted small">${esc(s.season?.displayName || '')} ${esc(s.season?.name || '')}</span></div><div id="statBody"></div>` : errBox('Team statistics are not available yet for this season.')}</div>
-    <div class="section"><h2>Standings</h2><div class="card">${standingsTable(std, t)}</div></div>`;
-  playerStatsPanel(t, null, $('#pstats')); starsHtml(t, null).then(h => alive() && ($('#starsBox').innerHTML = h));
+    ${s?.cats?.length ? `<div class="filters"><div class="chips" id="sideChips"><button class="chip on" data-s="team">${esc(t.nick)}</button><button class="chip" data-s="opp">Opponents</button></div><span class="muted small">${esc(s.season?.displayName || '')} ${esc(s.season?.name || '')}</span></div><div id="statBody"></div>` : errBox('Team statistics are not available yet for this season.')}</div>`;
+  if (isMlb) mlbProStatsView(t, $('#pstats'), alive, rmap);
+  else {
+    const refresh = async year => {
+      playerStatsPanel(t, year, $('#pstats'));
+      starsHtml(t, year).then(h => alive() && ($('#starsBox').innerHTML = h));
+      $('#rankBox').innerHTML = spinner();
+      const espnYear = t.league === 'nba' ? (year ?? nbaStart) + 1 : (year ?? nowYear());
+      const groups = await safe(API.leagueLeaders(t.league, espnYear), []); if (!alive()) return;
+      const ids = (await safe(API.teamPlayerStats(t, year), null))?.ids;
+      const mine = (groups || []).flatMap(g => g.lists.map(l => l.rows.filter(r => (ids && ids.size ? ids.has(String(r.id)) : r.philly)).map(r => ({ ...r, cat: l.label, main: l.main })))).flat();
+      $('#rankBox').innerHTML = mine.length ? `<div class="stars">${mine.map(r => `<a class="star" href="https://www.espn.com/${t.league}/player/_/id/${r.id}" target="_blank" rel="noopener" style="color:inherit"><img src="${esc(r.head || '')}" alt="" onerror="this.style.visibility='hidden'"><div><div class="v">#${r.rank} · ${esc(r.value)}</div><div class="c">${esc(r.cat)}</div><div class="n">${esc(r.name)}</div></div></a>`).join('')}</div>` : `<div class="muted small">No ${t.nick} players in the league's top 10 of the major categories.</div>`;
+    };
+    $('#ysSeg').addEventListener('click', e => { const b = e.target.closest('[data-i]'); if (!b) return; $$('#ysSeg button').forEach(x => x.classList.toggle('on', x === b)); refresh(seasons[+b.dataset.i][0]); });
+    refresh(seasons[0][0]);
+  }
   if (!s?.cats?.length) return;
   const draw = side => {
     const cats = side === 'team' ? s.cats : s.opp;

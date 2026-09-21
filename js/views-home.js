@@ -68,8 +68,8 @@ async function viewHome({ mount, alive }) {
       <p class="disc">Photos from Wikimedia Commons via Wikipedia; each article lists the photographer and license. Facts are summarized from public sources.</p></section>
     <section class="section"><h2>Headlines</h2><div id="homeNews">${spinner('Loading headlines…')}</div></section>
     <section class="section"><h2>Championship banners</h2><div class="grid g3">${TEAM_KEYS.map(k => `<div class="card"><div class="row between" style="margin-bottom:12px"><h3 style="margin:0"><img src="${teamLogo(TEAMS[k])}" width="34" height="34" alt=""> ${TEAMS[k].nick}</h3><span class="badge gold">${H.titles(k).length} titles</span></div>${bannerWall(k)}<a class="btn small ghost" style="margin-top:14px" href="#/team/${k}/history">Full history →</a></div>`).join('')}</div></section>
-    <section class="section"><h2>Explore</h2><div class="grid g4">
-      ${[['#/history', '📜', 'Franchise overview', 'The three franchises: titles, timelines and every season.'],
+    <section class="section"><h2>Explore</h2><div class="grid g-auto" style="grid-template-columns:repeat(auto-fill,minmax(220px,1fr))">
+      ${[['#/leagues', '📊', 'Leagues', 'Standings, playoff races and leaders for the MLB, NFL and NBA.'], ['#/history', '📜', 'Franchise overview', 'The three franchises: titles, timelines and every season.'],
       ['#/year', '🗓️', 'Year Explorer', 'Pick any year and see how all three teams did.'],
       ['#/stadiums', '🏟️', 'Stadiums', 'Current homes and the parks of the past.'],
       ['#/shop', '🛍️', 'Team shop', 'Jerseys, hats and more at Fanatics and official stores.']]
@@ -107,18 +107,19 @@ async function viewHome({ mount, alive }) {
   const draw = async () => {
     const stats = await Promise.all(TEAM_KEYS.map(async k => {
       const t = TEAMS[k];
-      const [info, gs] = await Promise.all([safe(API.team(t)), safe(API.gameStatus(t))]);
-      return { k, t, info, gs };
+      const [info, gs, pic] = await Promise.all([safe(API.team(t)), safe(API.gameStatus(t)), safe(API.picture(t), null)]);
+      return { k, t, info, gs, pic };
     }));
     if (!alive()) return;
     $$('#heroTiles .hero-tile').forEach((el, i) => { const inf = stats[i].info; el.querySelector('.rc').innerHTML = `${inf && (inf.w + inf.l + inf.tie) > 0 ? esc(inf.summary) : '—'}<small>${esc(inf?.standingSummary || 'Record')}</small>`; });
-    $('#teamCards').innerHTML = stats.map(({ k, t, info, gs }) => {
+    $('#teamCards').innerHTML = stats.map(({ k, t, info, gs, pic }) => {
       const tot = totals[TEAM_KEYS.indexOf(k)];
       const hasRec = info && (info.w + info.l + info.tie) > 0;
       return `<div class="team-card" style="--c1:${t.primary}">
         <a class="top" href="#/team/${k}"><img src="${teamLogoOn(t)}" alt=""><div><div class="small" style="color:#ffffffb0;letter-spacing:.1em;text-transform:uppercase">${t.sportName} · ${t.since}–present</div><h3>${t.nick}</h3>
           <div class="rec">${hasRec ? esc(info.summary) : '—'}</div><div class="small" style="color:#ffffffd0">${esc(info?.standingSummary || 'Offseason')}</div></div></a>
         <div class="body">
+          ${pic ? `<a class="pstrip tone-${pic.tone}" href="#/team/${k}/picture"><span class="pl">${pic.kind === 'nba' && pic.fin ? 'LAST SEASON' : 'PLAYOFF PICTURE'}</span><b>${esc(pic.headline)}</b><span class="ps">${esc(pic.sub)}</span></a>` : ''}
           ${gs?.live ? gameBox(t, gs.live, 'LIVE') : ''}
           ${!gs?.live ? gameBox(t, gs?.next, 'NEXT') : ''}
           ${gameBox(t, gs?.last, 'LAST')}
