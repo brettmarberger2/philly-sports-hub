@@ -44,7 +44,7 @@ function remainingHtml(t, pic, rem) {
   const shown = rem.games.slice(0, 20), opener = pic.kind === 'nba' && pic.fin;
   const cols = [
     { key: 'ts', label: 'Date', sortVal: g => g.ts, fmt: g => esc(fmtDay(g.date)) },
-    { key: 'opp', label: 'Opponent', sortVal: g => g.opp.name, fmt: g => `<div class="pname"><span class="dim">${g.home ? 'vs' : '@'}</span><img src="${esc(g.opp.logo)}" style="border-radius:0;background:none;border:0;width:24px;height:24px;object-fit:contain" alt="" onerror="this.style.visibility='hidden'">${esc(g.opp.name)}</div>` },
+    { key: 'opp', label: 'Opponent', sortVal: g => g.opp.name, fmt: g => `<a class="pname tlink" href="javascript:void(0)" data-teamcard="${t.league}|${g.opp.id}" style="color:inherit"><span class="dim">${g.home ? 'vs' : '@'}</span><img src="${esc(g.opp.logo)}" style="border-radius:0;background:none;border:0;width:24px;height:24px;object-fit:contain" alt="" onerror="this.style.visibility='hidden'">${esc(g.opp.name)}</a>` },
     { key: 'rec', label: 'Their record', num: true, sortVal: g => g.oppT?.pct ?? 0, fmt: g => (g.oppT ? esc(wl(g.oppT, t)) : '') },
     { key: 'lvl', label: 'Tough?', fmt: g => (!g.oppT ? '' : g.oppT.pct >= 0.6 ? '<span class="badge bad">Hard</span>' : g.oppT.pct >= 0.5 ? '<span class="badge" style="background:#fff1e6;color:#8a4b12">Winning team</span>' : '<span class="badge good">Easier</span>') },
   ];
@@ -116,7 +116,7 @@ async function viewLeagues({ mount, alive }) {
     const n = k === 'mlb' ? 6 : k === 'nfl' ? 7 : 6;
     return `<div class="card"><div class="row" style="gap:12px;margin-bottom:12px"><img src="${teamLogo(t)}" width="44" height="44" alt=""><div><h3 style="margin:0">${L.short}</h3><div class="muted small">${esc(L.sub)}</div></div></div>
       ${pic ? picBannerHtml(pic, true) : ''}
-      ${groups.map(g => `<h4 style="margin:14px 0 6px">${esc(g.name)}</h4><div class="mini">${g.ordered.slice(0, n).map((r, i) => `<div class="${pic && r.id === pic.us.id ? 'us' : ''}"><span class="s">${r.seed ?? i + 1}</span><img src="${esc(r.logo)}" alt=""><b>${esc(r.abbr)}</b><span class="rec">${esc(`${r.w}-${r.l}${r.t ? '-' + r.t : ''}`)}</span></div>`).join('')}</div>`).join('')}
+      ${groups.map(g => `<h4 style="margin:14px 0 6px">${esc(g.name)}</h4><div class="mini">${g.ordered.slice(0, n).map((r, i) => `<div class="${pic && r.id === pic.us.id ? 'us' : ''} click" data-teamcard="${k}|${r.id}"><span class="s">${r.seed ?? i + 1}</span><img src="${esc(r.logo)}" alt=""><b>${esc(r.abbr)}</b><span class="rec">${esc(`${r.w}-${r.l}${r.t ? '-' + r.t : ''}`)}</span></div>`).join('')}</div>`).join('')}
       <div class="row" style="margin-top:16px"><a class="btn small primary" style="--team:${t.primary}" href="#/league/${k}">Full ${L.short} standings →</a><a class="btn small" href="#/league/${k}/leaders">Leaders</a></div></div>`;
   }).join('');
 }
@@ -143,7 +143,7 @@ const aheadBy = (a, b) => ((a.w - b.w) + (b.l - a.l)) / 2;
 function teamCellHtml(r, lg) {
   const mine = String(r.id) === PHILLY_ID[lg];
   const inner = `<img src="${esc(r.logo)}" style="border-radius:0;background:none;border:0;width:24px;height:24px;object-fit:contain" alt="">${mine ? `<b>${esc(r.name)}</b>` : esc(r.name)}`;
-  return mine ? `<a class="pname" href="#/team/${LEAGUES[lg].team}" style="color:inherit">${inner}</a>` : `<div class="pname">${inner}</div>`;
+  return mine ? `<a class="pname" href="#/team/${LEAGUES[lg].team}" style="color:inherit">${inner}</a>` : `<a class="pname tlink" href="javascript:void(0)" data-teamcard="${lg}|${r.id}" style="color:inherit">${inner}</a>`;
 }
 /** A playoff table split into labeled sections (who's in by division, who's in as a wild card, who's chasing). */
 function boardHtml(table, sections, opts = {}) {

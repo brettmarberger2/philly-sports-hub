@@ -26,7 +26,12 @@ async function espnSummary(lg, id) {
   const scoring = (s.scoringPlays || []).map(p => ({ text: p.text, type: p.type?.text, period: p.period?.number, clock: p.clock?.displayValue, away: p.awayScore, home: p.homeScore, team: p.team?.abbreviation || '' }));
   const nPer = Math.max(0, ...teams.map(t => t.lines.length));
   const perLabel = i => (lg === 'mlb' ? String(i + 1) : lg === 'nfl' ? (i < 4 ? `Q${i + 1}` : 'OT') : i < 4 ? `Q${i + 1}` : `OT${i - 3}`);
-  return { lg, id, kind: 'espn', state: st.state || 'pre', detail: st.detail || st.shortDetail || '', date: comp.date, venue: s.gameInfo?.venue?.fullName || '', tv: s.broadcasts?.[0]?.media?.shortName || '', note: comp.notes?.[0]?.headline || '', teams, periods: Array.from({ length: nPer }, (_, i) => perLabel(i)), teamStats, players, leaders, scoring, link: `https://www.espn.com/${lg}/game/_/gameId/${id}` };
+  const injuries = {}; (s.injuries || []).forEach(t => { injuries[String(t.team?.id)] = (t.injuries || []).map(i => ({ name: i.athlete?.displayName, pos: i.athlete?.position?.abbreviation || '', status: i.status, type: i.details?.type || i.type?.description || '' })); });
+  const pc = s.pickcenter?.[0], pr = s.predictor;
+  const odds = pc ? { details: pc.details, ou: pc.overUnder, provider: pc.provider?.name } : null;
+  const predict = pr ? { [String(pr.homeTeam?.id)]: parseFloat(pr.homeTeam?.gameProjection), [String(pr.awayTeam?.id)]: parseFloat(pr.awayTeam?.gameProjection) } : null;
+  const last5 = {}; (s.lastFiveGames || []).forEach(t => { last5[String(t.team?.id)] = (t.events || []).map(e => ({ res: e.gameResult, score: e.score, opp: e.opponent?.abbreviation || '', at: e.atVs || '', id: e.id, date: e.gameDate })); });
+  return { lg, id, kind: 'espn', injuries, odds, predict, last5, state: st.state || 'pre', detail: st.detail || st.shortDetail || '', date: comp.date, venue: s.gameInfo?.venue?.fullName || '', tv: s.broadcasts?.[0]?.media?.shortName || '', note: comp.notes?.[0]?.headline || '', teams, periods: Array.from({ length: nPer }, (_, i) => perLabel(i)), teamStats, players, leaders, scoring, link: `https://www.espn.com/${lg}/game/_/gameId/${id}` };
 }
 
 async function mlbSummary(pk) {
@@ -92,7 +97,7 @@ async function openGame(kind, lg, id) {
   const rmap = lg === 'mlb' ? new Map(((await safe(getRosterCached('phillies'), null))?.players || []).map(p => [normName(p.name), p.id])) : null;
   const [away, home] = g.teams, ph = g.teams.find(t => t.id === PHILLY_ID[lg]) || home, other = g.teams.find(t => t !== ph);
   const pre = g.state === 'pre';
-  const side = t => `<div class="bxt ${t.winner ? 'w' : ''}"><img src="${esc(t.logo)}" alt=""><div><b>${esc(t.abbr)}</b><span>${esc(t.record)}</span></div>${pre ? '' : `<div class="bxs">${esc(t.score)}</div>`}</div>`;
+  const side = t => `<div class="bxt ${t.winner ? 'w' : ''}" data-teamcard="${lg}|${t.id}" role="button" title="Open ${esc(t.name)}"><img src="${esc(t.logo)}" alt=""><div><b>${esc(t.abbr)}</b><span>${esc(t.record)}</span></div>${pre ? '' : `<div class="bxs">${esc(t.score)}</div>`}</div>`;
   const status = g.state === 'in' ? `<span class="badge live">Live · ${esc(g.detail)}</span>` : pre ? `<span class="badge">${esc(fmtDay(g.date))} · ${esc(fmtTime(g.date))}</span>` : `<span class="badge">${esc(g.detail || 'Final')}</span>`;
   const leaders = g.leaders.length ? `<div class="grid g2" style="gap:12px">${g.leaders.map(l => `<div class="card flat" style="padding:14px"><h4 style="margin:0 0 8px">${esc(l.abbr)} top performers</h4>${l.items.slice(0, 5).map(x => `<div class="row between small" style="padding:3px 0;flex-wrap:nowrap;gap:8px"><span class="muted">${esc(x.cat)}</span><span style="text-align:right"><b>${esc(x.name)}</b> ${esc(x.value)}</span></div>`).join('')}</div>`).join('')}</div>` : '';
   const scoring = g.scoring.length ? `<details class="acc" style="margin-top:14px"><summary>Scoring summary (${g.scoring.length})</summary><div class="inner">${g.scoring.map(p => `<div class="pathrow"><span class="badge" style="min-width:44px;text-align:center">${esc(p.team)}</span><span style="flex:1">${esc(p.text)}</span><span class="dim small nw">${g.lg === 'nfl' ? `Q${p.period}` : ''} ${esc(p.clock || '')} · ${esc(p.away)}–${esc(p.home)}</span></div>`).join('')}</div></details>` : '';
@@ -102,14 +107,14 @@ async function openGame(kind, lg, id) {
       <div class="bx-teams">${side(away)}<div class="bx-at">${pre ? '@' : '–'}</div>${side(home)}</div>
       <div class="small" style="opacity:.85">${esc([g.venue, g.tv].filter(Boolean).join(' · '))}${g.decisions?.length ? ` · ${esc(g.decisions.join(' · '))}` : ''}</div></div>
     <div class="pl-body">
-      ${pre ? `<div class="errbox" style="margin-bottom:14px">This game hasn't started. The box score fills in live once it does.</div>` : ''}
+      ${pre ? `<div id="pvBox">${spinner('Building the game preview…')}</div>` : ''}
       ${lineScoreHtml(g)}
       ${leaders ? `<div style="margin-top:16px">${leaders}</div>` : ''}
       ${scoring}
       ${pre ? '' : `<div class="section" style="margin-top:22px"><h2 style="font-size:1.4rem">Box score</h2><div class="seg" id="bxSeg" style="margin-bottom:12px">${[ph, other].map((t, i) => `<button data-t="${t.id}" class="${i === 0 ? 'on' : ''}">${esc(t.abbr)} players</button>`).join('')}${tstats ? '<button data-t="team">Team stats</button>' : ''}</div><div id="bxBox"></div></div>`}
       <div class="row" style="margin-top:18px"><a class="btn small" href="${esc(g.link)}" target="_blank" rel="noopener">${lg === 'mlb' ? 'MLB Gameday' : 'ESPN Gamecast'} ↗</a></div>
     </div>`);
-  if (pre) return;
+  if (pre) { fillPreview(g); return; }
   const draw = tid => { $$('#bxSeg button').forEach(b => b.classList.toggle('on', b.dataset.t === tid)); $('#bxBox').innerHTML = tid === 'team' ? tstats : playerTablesHtml(g, tid, rmap); };
   $('#bxSeg').addEventListener('click', e => { const b = e.target.closest('[data-t]'); if (b) draw(b.dataset.t); });
   draw(ph.id);

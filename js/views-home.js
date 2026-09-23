@@ -21,6 +21,7 @@ function gameBox(t, g, label) {
     <div class="lab"><span>${label}${g.label ? ' · ' + esc(g.label) : ''}</span>${badge}</div>
     <div class="matchup">${side(away)}${mid}${side(home, true)}</div>
     ${meta ? `<div class="dim small" style="margin-top:6px">${esc(meta)}</div>` : ''}
+    ${g.state === 'pre' ? `<div class="gprev" data-prev="${gameRef(t, g)}"><span class="dim">Loading preview…</span></div>` : ''}
   </a>`;
 }
 
@@ -45,7 +46,7 @@ async function viewHome({ mount, alive }) {
         <p class="lede">Scores, standings, playoff races, stats and news for the Eagles, Phillies and 76ers. Plus every season since ${yr.min} when you want the history.</p>
         <div class="row" style="margin-top:18px">
           <a class="btn primary" style="--team:#0b1a30" href="#/leagues">Standings &amp; playoff races</a>
-          <a class="btn" href="#/league/mlb/leaders">League leaders</a>
+          <a class="btn" href="javascript:void(0)" data-jump="ld">League leaders</a>
           <a class="btn" href="#/history">📜 History</a>
           <a class="btn" href="#/year">🗓️ Year Explorer</a>
         </div>
@@ -120,7 +121,6 @@ async function viewHome({ mount, alive }) {
     }));
     if (!alive()) return;
     $$('#heroTiles .hero-tile').forEach((el, i) => { const { info: inf, pic, k } = stats[i]; el.querySelector('.rc').innerHTML = `${inf && (inf.w + inf.l + inf.tie) > 0 ? esc(inf.summary) : '—'}<small>${esc(inf?.standingSummary || 'Record')}</small>`; if (pic) $(`#hs-${k}`).textContent = pic.statusShort; });
-    homeUpcoming(stats);
     homeStandings(stats);
     $('#teamCards').innerHTML = stats.map(({ k, t, info, gs, pic }) => {
       const tot = totals[TEAM_KEYS.indexOf(k)];
@@ -136,6 +136,7 @@ async function viewHome({ mount, alive }) {
           <div class="row small muted" style="margin-top:auto"><span>🏆 ${tot.titles} titles</span><span>📈 ${tot.w}–${tot.l}${tot.t ? '–' + tot.t : ''} all-time</span><a href="#/team/${k}" style="margin-left:auto;font-weight:700">Team hub →</a></div>
         </div></div>`;
     }).join('');
+    fillPreviewLines($('#teamCards'));
     const live = stats.filter(s => s.gs?.live);
     $('#liveStrip').innerHTML = live.length ? `<div class="champion-strip" style="margin-top:20px;background:#fde4e1;border-color:#f5b5ae;color:#7a1a12"><span class="badge live">Live now</span>${live.map(s => `<a href="#/team/${s.k}"><b>${esc(s.t.nick)}</b> ${s.gs.live.ourScore ?? 0}–${s.gs.live.oppScore ?? 0} ${s.gs.live.home ? 'vs' : '@'} ${esc(s.gs.live.opp.short)} · ${esc(s.gs.live.detail)}</a>`).join(' · ')}</div>` : '';
   };
@@ -169,7 +170,7 @@ function homeStandings(stats) {
     else { rows = pic.scopes[0].rows; title = pic.us.divName; }
     const top = rows[0];
     return `<a class="card snap" href="#/team/${k}/picture" style="border-top:5px solid ${t.primary}"><div class="row between" style="margin-bottom:10px"><h3 style="margin:0;font-size:1.15rem">${esc(title)}</h3><span class="pstrip-mini tone-${pic.tone}">${esc(pic.statusShort)}</span></div>
-      <div class="mini">${rows.map(r => `<div class="${r.id === pic.us.id ? 'us' : ''}"><span class="s">${pic.kind === 'nba' ? r.seed : r.divRank}</span><img src="${esc(r.logo)}" alt=""><b>${esc(r.abbr)}</b><span class="rec">${r.w}-${r.l}${r.t ? '-' + r.t : ''}</span><span class="gbx">${fmtGB(gbFrom(pic.kind === 'nba' ? pic.table.leagues[pic.us.conf].ordered[0] : top, r))}</span></div>`).join('')}</div>
+      <div class="mini">${rows.map(r => `<div class="${r.id === pic.us.id ? 'us' : ''} click" data-teamcard="${pic.kind}|${r.id}"><span class="s">${pic.kind === 'nba' ? r.seed : r.divRank}</span><img src="${esc(r.logo)}" alt=""><b>${esc(r.abbr)}</b><span class="rec">${r.w}-${r.l}${r.t ? '-' + r.t : ''}</span><span class="gbx">${fmtGB(gbFrom(pic.kind === 'nba' ? pic.table.leagues[pic.us.conf].ordered[0] : top, r))}</span></div>`).join('')}</div>
       <div class="small" style="margin-top:10px;color:var(--accent);font-weight:700">Playoff picture &amp; every ${pic.kind === 'nba' ? 'conference' : 'division'} ›</div></a>`;
   }).join('');
 }

@@ -612,3 +612,20 @@ table.linescore th, table.linescore td { padding: 8px 10px; } table.linescore .t
 .lastline { display: flex; gap: 10px; align-items: baseline; flex-wrap: wrap; font-size: 1.1rem; color: var(--text); margin-bottom: 10px; } .lastline:hover { text-decoration: none; } .lastline span { font-weight: 700; }
 @media (max-width: 620px) { .bxt img { width: 44px; height: 44px; } .bxs { font-size: 2.2rem; } .bx-teams { gap: 10px; } .bxt b { font-size: 1.3rem; } .jumpbar a { padding: 6px 11px; font-size: .78rem; } }
 @media (max-width: 960px) { .bnav { grid-template-columns: repeat(6, 1fr); } .bnav a span { font-size: .6rem; } }
+
+/* ===== v12: previews + team cards ===== */
+.gprev { margin-top: 8px; padding-top: 8px; border-top: 1px dashed var(--line); font-size: .8rem; line-height: 1.45; color: var(--text); } .gprev .pvmore { display: block; color: var(--accent); font-weight: 700; margin-top: 3px; }
+.pvt { margin: 22px 0 10px; font-size: 1.25rem; } #pvBox > .pvt:first-child, #pvBox > .pvodds:first-child { margin-top: 4px; }
+.pv2 { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+.pvcol { border: 1px solid var(--line); border-radius: 14px; padding: 12px 14px; background: var(--card); min-width: 0; }
+.pvh { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; } .pvh img { width: 26px; height: 26px; object-fit: contain; } .pvh b { font-family: var(--display); font-size: 1.2rem; }
+.pvp b { font-size: 1rem; } .pvstat { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 4px; margin-top: 8px; } .pvstat span { background: var(--bg2); border-radius: 8px; padding: 6px 2px; text-align: center; font-size: .6rem; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); font-weight: 800; } .pvstat b { display: block; font-size: .95rem; color: var(--text); letter-spacing: 0; }
+.pvl { margin: 0; padding-left: 20px; display: grid; gap: 4px; } .pvl li { font-size: .84rem; } .pvl .nm { display: block; font-weight: 700; } .pvl .st { display: block; font-size: .74rem; color: var(--muted); font-variant-numeric: tabular-nums; }
+.pvrow { display: flex; justify-content: space-between; gap: 8px; padding: 4px 0; font-size: .84rem; border-top: 1px solid var(--line); } .pvrow:first-of-type { border-top: 0; } .pvrow > span:last-child, .pvrow > b:last-child { text-align: right; }
+.kvs { display: grid; grid-template-columns: auto 1fr; gap: 4px 10px; font-size: .85rem; } .kvs span { color: var(--muted); } .kvs b { text-align: right; }
+.pvodds { display: flex; gap: 12px; flex-wrap: wrap; align-items: stretch; } .pvodds > div { background: var(--bg2); border: 1px solid var(--line); border-radius: 12px; padding: 10px 14px; display: flex; flex-direction: column; gap: 2px; } .pvodds b { font-size: 1.15rem; font-family: var(--display); }
+.pvwin { flex: 1; min-width: 200px; } .pvwin .bar { height: 10px; border-radius: 6px; background: var(--team); overflow: hidden; margin: 6px 0 4px; } .pvwin .bar i { display: block; height: 100%; background: #98a1b0; }
+.tc-head { background: linear-gradient(120deg, #1f2a3d, #0b1a30); } .tc-head h2 { margin: 4px 0 8px; }
+.bxt[data-teamcard] { cursor: pointer; } .tlink:hover b, a.tlink:hover { text-decoration: underline; }
+.mini > div.click:hover { background: var(--bg2); }
+@media (max-width: 620px) { .pv2 { grid-template-columns: 1fr; } .pvstat { grid-template-columns: repeat(5, minmax(0, 1fr)); } }

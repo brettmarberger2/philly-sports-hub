@@ -298,7 +298,7 @@ async function tabSchedule(t, { mount, alive, q }) {
     const cols = [
       { key: 'ts', label: 'Date', sortVal: g => g.ts, fmt: g => `<span>${esc(fmtDate(g.date, { month: 'short', day: 'numeric', year: 'numeric' }))}</span>` },
       { key: 'label', label: 'Round', cls: 'muted', fmt: g => esc(g.label) },
-      { key: 'opp', label: 'Opponent', sortVal: g => g.opp.name, fmt: g => `<div class="pname"><span class="dim" style="min-width:22px">${g.home ? 'vs' : '@'}</span><img src="${esc(g.opp.logo)}" style="border-radius:0;background:none;width:24px;height:24px;object-fit:contain" alt="" loading="lazy" onerror="this.style.visibility='hidden'">${esc(g.opp.name)}</div>` },
+      { key: 'opp', label: 'Opponent', sortVal: g => g.opp.name, fmt: g => `<div class="pname" data-teamcard="${t.league}|${g.opp.id}" style="cursor:pointer"><span class="dim" style="min-width:22px">${g.home ? 'vs' : '@'}</span><img src="${esc(g.opp.logo)}" style="border-radius:0;background:none;width:24px;height:24px;object-fit:contain" alt="" loading="lazy" onerror="this.style.visibility='hidden'">${esc(g.opp.name)}</div>` },
       { key: 'result', label: 'Result', fmt: g => (g.state === 'post' ? `${resultChip(g)} <span class="dim small">Box score ›</span>` : g.state === 'in' ? `<span class="badge live">${esc(g.detail)}</span> ${g.ourScore ?? 0}–${g.oppScore ?? 0}` : `<span class="muted">${esc(fmtTime(g.date))}</span>`) },
       { key: 'rec', label: 'Record', num: true, sortVal: g => g.ts, fmt: g => esc(recMap.get(g.id) || '') },
       { key: 'tv', label: 'TV', cls: 'muted', fmt: g => esc(g.tv || '') },
