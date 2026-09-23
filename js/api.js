@@ -167,11 +167,15 @@ const API = {
   /** Team leaders for a season (year = null → current). Returns [{cat, name, id, value, headshot}] */
   async leaders(t, year = null) {
     if (t.mlbId) {
-      const y = year ?? new Date().getFullYear();
-      const cats = ['homeRuns', 'battingAverage', 'runsBattedIn', 'hits', 'stolenBases', 'wins', 'earnedRunAverage', 'strikeouts', 'saves'];
-      const j = await getJSON(`${MLB_API}/teams/${t.mlbId}/leaders?leaderCategories=${cats.join(',')}&season=${y}&leaderGameTypes=R`, year && year < new Date().getFullYear() ? 86400 : 300);
+      const y = year ?? new Date().getFullYear(), ttl = year && year < new Date().getFullYear() ? 86400 : 300;
+      const groups = { hitting: ['homeRuns', 'battingAverage', 'runsBattedIn', 'hits', 'stolenBases'], pitching: ['wins', 'earnedRunAverage', 'strikeouts', 'saves'] };
       const names = { homeRuns: 'Home Runs', battingAverage: 'Batting Avg', runsBattedIn: 'RBI', hits: 'Hits', stolenBases: 'Stolen Bases', wins: 'Wins', earnedRunAverage: 'ERA', strikeouts: 'Strikeouts (P)', saves: 'Saves' };
-      return (j.teamLeaders || []).filter(x => x.leaders?.length).map(x => { const l = x.leaders[0]; return { cat: names[x.leaderCategory] || x.leaderCategory, name: l.person.fullName, value: l.value, mlbId: l.person.id, headshot: `https://img.mlbstatic.com/mlb-photos/image/upload/w_120,q_auto:best/v1/people/${l.person.id}/headshot/67/current` }; });
+      const out = [];
+      for (const [g, cats] of Object.entries(groups)) {
+        const j = await safe(getJSON(`${MLB_API}/teams/${t.mlbId}/leaders?leaderCategories=${cats.join(',')}&season=${y}&leaderGameTypes=R&statGroup=${g}`, ttl), null);
+        cats.forEach(k => { const x = (j?.teamLeaders || []).find(z => z.leaderCategory === k && (z.statGroup === g || !z.statGroup) && z.leaders?.length); if (!x) return; const l = x.leaders[0]; out.push({ cat: names[k], lbKey: k, year, name: l.person.fullName, value: l.value, mlbId: l.person.id, headshot: `https://img.mlbstatic.com/mlb-photos/image/upload/w_120,q_auto:best/v1/people/${l.person.id}/headshot/67/current` }); });
+      }
+      return out;
     }
     const season = espnSeason(t, year ?? new Date().getFullYear());
     const want = t.league === 'nfl'
@@ -183,7 +187,7 @@ const API = {
     const out = await Promise.all(picks.map(async c => {
       const l = c.leaders[0]; let name = '', id = '';
       const ref = l.athlete?.$ref; if (ref) { id = (ref.match(/athletes\/(\d+)/) || [])[1]; const a = await safe(getJSON(httpsify(ref), 86400), null); name = a?.displayName || a?.fullName || ''; }
-      return { cat: want[c.name], name, id, value: l.displayValue, headshot: id ? headshot(t, id) : '' };
+      return { cat: want[c.name], lbKey: c.name, year, name, id, value: l.displayValue, headshot: id ? headshot(t, id) : '' };
     }));
     return out.filter(o => o.name);
   },

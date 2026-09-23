@@ -32,7 +32,7 @@ function careerTables(stats) {
     const labels = c.labels || [];
     const rows = c.statistics.map(s => `<tr><td><b>${esc(s.season?.displayName || s.season?.year || '')}</b></td><td>${esc(teamName(s))}</td>${labels.map((_, j) => `<td class="num">${esc(s.stats?.[j] ?? '')}</td>`).join('')}</tr>`).join('');
     const tot = c.totals?.length ? `<tr style="font-weight:700;background:var(--card2)"><td colspan="2">Career</td>${labels.map((_, j) => `<td class="num">${esc(c.totals[j] ?? '')}</td>`).join('')}</tr>` : '';
-    return `<details class="acc" ${i < 2 ? 'open' : ''}><summary>${esc(c.displayName || c.name)}</summary><div class="inner"><div class="table-wrap"><table class="data"><thead><tr><th>Season</th><th>Team</th>${labels.map(l => `<th class="num">${esc(l)}</th>`).join('')}</tr></thead><tbody>${rows}${tot}</tbody></table></div></div></details>`;
+    return `<details class="acc" ${i < 2 ? 'open' : ''}><summary>${esc(c.displayName || c.name)}</summary><div class="inner"><div class="table-wrap"><table class="data stick1"><thead><tr><th>Season</th><th>Team</th>${labels.map(l => `<th class="num">${esc(l)}</th>`).join('')}</tr></thead><tbody>${rows}${tot}</tbody></table></div></div></details>`;
   }).join('');
 }
 

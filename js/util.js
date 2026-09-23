@@ -92,8 +92,11 @@ function renderTable(id, cols, rows, opts = {}) {
       return (typeof x === 'number' && typeof y === 'number' ? x - y : String(x).localeCompare(String(y), undefined, { numeric: true })) * st.dir;
     });
   }
-  const head = cols.map(c => `<th class="${c.num ? 'num' : ''} ${c.cls || ''} sortable ${st.key === c.key ? (st.dir > 0 ? 'asc' : 'desc') : ''}" data-sort="${c.key}" data-table="${id}">${esc(c.label)}</th>`).join('');
-  const body = data.map(r => `<tr ${opts.rowAttr ? opts.rowAttr(r) : ''} class="${opts.rowClass ? opts.rowClass(r) : ''}">${cols.map(c => `<td class="${c.num ? 'num' : ''} ${c.cls || ''}">${c.fmt ? c.fmt(r) : esc(r[c.key] ?? '')}</td>`).join('')}</tr>`).join('');
+  // The identifying column (player / team / opponent) stays pinned on the left while the stats scroll sideways.
+  const stick = opts.sticky ?? (['name', 'opp', 'teamName'].find(k => cols.some(c => c.key === k)) || cols[0]?.key);
+  const cls = c => `${c.num ? 'num' : ''} ${c.cls || ''} ${c.key === stick ? 'stk' : ''} ${st.key === c.key ? 'sorted' : ''}`;
+  const head = cols.map(c => `<th class="${cls(c)} sortable ${st.key === c.key ? (st.dir > 0 ? 'asc' : 'desc') : ''}" data-sort="${c.key}" data-table="${id}">${esc(c.label)}</th>`).join('');
+  const body = data.map(r => `<tr ${opts.rowAttr ? opts.rowAttr(r) : ''} class="${opts.rowClass ? opts.rowClass(r) : ''}">${cols.map(c => `<td class="${cls(c)}">${c.fmt ? c.fmt(r) : esc(r[c.key] ?? '')}</td>`).join('')}</tr>`).join('');
   return `<div class="table-wrap"><table class="data" id="${id}"><thead><tr>${head}</tr></thead><tbody>${body}</tbody></table></div>`;
 }
 document.addEventListener('click', e => {

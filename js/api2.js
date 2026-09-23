@@ -84,3 +84,36 @@ function seasonHighlights(t, games) {
   out.push(['Season opener', desc(played[0])]);
   return out;
 }
+
+/** Season stat line for every player on a team, keyed for the depth chart: ESPN id (NFL/NBA) or normalized name (MLB). */
+API.depthLines = async t => {
+  const lines = new Map(), byName = new Map();
+  if (t.league === 'nfl') {
+    const W = 'https://site.web.api.espn.com/apis/common/v3/sports/football/nfl/statistics/byathlete?region=us&lang=en&contentorigin=espn&isqualified=false&seasontype=2&limit=1000';
+    const cats = [['offense:passing', 'passing:passingYards:desc'], ['offense:rushing', 'rushing:rushingYards:desc'], ['offense:receiving', 'receiving:receivingYards:desc'], ['defense', 'defensive:totalTackles:desc'], ['specialTeams:kicking', 'kicking:fieldGoalsMade:desc']];
+    const res = await Promise.all(cats.map(([c, s]) => safe(getJSON(`${W}&season=${new Date().getFullYear()}&category=${encodeURIComponent(c)}&sort=${encodeURIComponent(s)}`, 900), null)));
+    res.forEach(j => (j?.athletes || []).filter(a => String(a.athlete.teamId) === String(t.espnId)).forEach(a => {
+      if (lines.has(String(a.athlete.id))) return;
+      const v = (c, n) => { const cat = j.categories.find(x => x.name === c), i = cat?.names.indexOf(n), ac = a.categories.find(x => x.name === c); const x = i >= 0 && ac ? ac.totals[i] : ''; return x === '-' ? '' : x; };
+      const num = x => parseFloat(String(x).replace(/,/g, '')) || 0, parts = [];
+      if (num(v('passing', 'passingAttempts'))) parts.push(`${v('passing', 'completions')}/${v('passing', 'passingAttempts')}, ${v('passing', 'passingYards')} yds, ${v('passing', 'passingTouchdowns')} TD, ${v('passing', 'interceptions')} INT`);
+      if (num(v('rushing', 'rushingAttempts')) >= 3 || (num(v('rushing', 'rushingAttempts')) && !parts.length)) parts.push(`${v('rushing', 'rushingAttempts')} car, ${v('rushing', 'rushingYards')} yds${num(v('rushing', 'rushingTouchdowns')) ? `, ${v('rushing', 'rushingTouchdowns')} TD` : ''}`);
+      if (num(v('receiving', 'receptions'))) parts.push(`${v('receiving', 'receptions')} rec, ${v('receiving', 'receivingYards')} yds${num(v('receiving', 'receivingTouchdowns')) ? `, ${v('receiving', 'receivingTouchdowns')} TD` : ''}`);
+      if (num(v('defensive', 'totalTackles')) || num(v('defensive', 'sacks'))) parts.push([`${v('defensive', 'totalTackles') || 0} tkl`, num(v('defensive', 'sacks')) ? `${v('defensive', 'sacks')} sk` : '', num(v('defensiveinterceptions', 'interceptions')) ? `${v('defensiveinterceptions', 'interceptions')} INT` : '', num(v('defensive', 'passesDefended')) ? `${v('defensive', 'passesDefended')} PD` : ''].filter(Boolean).join(', '));
+      if (num(v('kicking', 'fieldGoalAttempts'))) parts.push(`FG ${v('kicking', 'fieldGoalsMade')}/${v('kicking', 'fieldGoalAttempts')}, XP ${v('kicking', 'extraPointsMade')}/${v('kicking', 'extraPointAttempts')}`);
+      const gp = v('general', 'gamesPlayed');
+      lines.set(String(a.athlete.id), (parts.length ? parts.slice(0, 2).join(' · ') : '') + (gp ? `${parts.length ? ' · ' : ''}${gp} GP` : ''));
+    }));
+    return { lines, byName, label: `${new Date().getFullYear()} season` };
+  }
+  if (t.league === 'nba') {
+    const tb = await safe(API.nbaTable(), null), start = tb?.year ?? new Date().getFullYear() - 1;
+    const r = await safe(API.teamPlayerStats(t, start), null);
+    (r?.tables?.[0]?.rows || []).forEach(p => lines.set(String(p.id), `${p.v.PTS} pts · ${p.v.REB} reb · ${p.v.AST} ast · ${p.v.GP} GP`));
+    return { lines, byName, empty: tb?.fallback ? 'No 76ers games last season (new arrival)' : 'No stats yet this season', label: `${start}–${String(start + 1).slice(2)} per game${tb?.fallback ? ' (last season)' : ''}` };
+  }
+  const d = await safe(API.mlbPro(t), null);
+  (d?.hitters || []).forEach(h => byName.set(normName(h.name), `${h.avg} AVG · ${h.hr} HR · ${h.ops} OPS${h.wrc != null ? ` · ${h.wrc} wRC+` : ''}`));
+  (d?.pitchers || []).forEach(p => byName.set(normName(p.name), p.role === 'SP' ? `${p.era} ERA · ${p.w}-${p.l} · ${p.ipS} IP · ${p.k9 ?? '—'} K/9` : `${p.era} ERA · ${p.sv ? p.sv + ' SV · ' : ''}${p.hld ? p.hld + ' HLD · ' : ''}${p.ipS} IP`));
+  return { lines, byName, label: `${new Date().getFullYear()} season` };
+};

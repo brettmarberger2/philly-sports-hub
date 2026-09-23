@@ -54,13 +54,14 @@ async function route() {
   if (head === 'season') activeKey = 'history';
   if (head === 'league') activeKey = 'leagues';
   if (head === 'legend') activeKey = '';
-  renderNav(activeKey);
+  renderNav(activeKey); renderBottomNav(activeKey); renderCrumbs(parts);
+  const restoreY = NAV.before(location.hash || '#/');
   setTheme(head === 'team' || head === 'season' ? parts[1] : head === 'league' && LEAGUES[parts[1]] ? LEAGUES[parts[1]].team : null);
   closeModal();
   setMenu(false);
   const prev = App.cur; App.cur = { head, key: parts[1] };
   const sameTeam = head === 'team' && prev && prev.head === 'team' && prev.key === parts[1] && $('#tabBody');
-  if (!sameTeam) { window.scrollTo(0, 0); view.innerHTML = spinner(); }
+  if (!sameTeam) { if (!restoreY) window.scrollTo(0, 0); view.innerHTML = spinner(); }
   try {
     let fn;
     if (!head) fn = viewHome;
@@ -76,6 +77,7 @@ async function route() {
     else { view.innerHTML = `<div class="card center"><h2>Page not found</h2><a class="btn" href="#/">Back home</a></div>`; return; }
     document.title = ({ '': 'Philly Sports Hub', team: `${TEAMS[parts[1]]?.nick || ''} · Philly Sports Hub`, history: 'Franchise Overview · Philly Sports Hub', leagues: 'Leagues · Philly Sports Hub', league: `${LEAGUES[parts[1]]?.short || ''} Standings · Philly Sports Hub`, year: 'Year Explorer · Philly Sports Hub', season: 'Season · Philly Sports Hub', stadiums: 'Stadiums · Philly Sports Hub', shop: 'Shop · Philly Sports Hub' })[head] || 'Philly Sports Hub';
     await fn({ parts, q, mount: view, token: my, alive: () => my === App.token });
+    NAV.after(restoreY, () => my === App.token);
   } catch (e) {
     console.error(e);
     if (my === App.token) view.innerHTML = `<div class="card"><h2>Something went wrong</h2><p class="muted">${esc(e.message)}</p><a class="btn" href="#/">Back home</a></div>`;
@@ -84,12 +86,15 @@ async function route() {
 
 /* ---------- Modal ---------- */
 function openModal(html) {
+  if (!$('#modalBack').classList.contains('open')) history.pushState({ modal: true }, '', location.href);
   $('#modal').innerHTML = `<button class="iconbtn x" data-close aria-label="Close">✕</button>${html}`;
   $('#modalBack').classList.add('open'); document.body.style.overflow = 'hidden';
 }
 function closeModal() { $('#modalBack').classList.remove('open'); document.body.style.overflow = ''; }
-$('#modalBack').addEventListener('click', e => { if (e.target.id === 'modalBack' || e.target.closest('[data-close]')) closeModal(); });
-document.addEventListener('keydown', e => { if (e.key === 'Escape') closeModal(); });
+/** Close from the X, the backdrop or Escape: step back through history so the phone Back button stays in sync. */
+function userCloseModal() { if (history.state?.modal) history.back(); else closeModal(); }
+$('#modalBack').addEventListener('click', e => { if (e.target.id === 'modalBack' || e.target.closest('[data-close]')) userCloseModal(); });
+document.addEventListener('keydown', e => { if (e.key === 'Escape' && $('#modalBack').classList.contains('open')) userCloseModal(); });
 
 /* ---------- Theme toggle ---------- */
 try { const saved = localStorage.getItem('ph:theme'); if (saved === 'dark' || saved === 'light') document.documentElement.dataset.theme = saved; } catch (e) { }

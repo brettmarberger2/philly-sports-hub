@@ -1,4 +1,4 @@
-/* Views: playoff picture tab, league pages, MLB pro stats */
+﻿/* Views: playoff picture tab, league pages, MLB pro stats */
 
 /* ---------- shared bits ---------- */
 const normName = s => String(s || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/\./g, '').toLowerCase().trim();
@@ -39,7 +39,12 @@ async function tabPicture(t, { mount, alive }) {
     </div><div class="stack">
       <div class="card flat"><h4 style="margin:0 0 6px">How to read this</h4><p class="small muted" style="margin:0">${pic.kind === 'mlb' ? 'Six teams per league make the playoffs: three division winners (seeds 1–3) and three Wild Cards (4–6). Seeds 1 and 2 skip the best-of-3 Wild Card round.' : pic.kind === 'nfl' ? 'Seven teams per conference: four division winners (1–4) and three wild cards (5–7). Only the #1 seed gets a first-round bye.' : 'Seeds 1–6 in each conference qualify directly. Seeds 7–10 play the Play-In Tournament for the final two spots.'}</p></div>
     </div></div>
-    <div class="section"><h2>The race</h2><div class="filters" style="padding:10px 14px"><div class="seg" id="scopeSeg">${pic.scopes.map((s, i) => `<button data-i="${i}" class="${i === 0 ? 'on' : ''}">${esc(s.label)}</button>`).join('')}</div><span class="muted small" id="scopeNote"></span></div><div id="raceBox"></div></div>`;
+    <div class="section"><h2>The race</h2><div class="filters" style="padding:10px 14px"><div class="seg" id="scopeSeg">${pic.scopes.map((s, i) => `<button data-i="${i}" class="${i === 0 ? 'on' : ''}">${esc(s.label)}</button>`).join('')}</div><span class="muted small" id="scopeNote"></span></div><div id="raceBox"></div></div>
+    <div class="section"><h2>Around the ${LEAGUES[t.league].short}</h2><p class="section-sub">Every ${t.league === 'nba' ? 'conference' : 'division'} and the playoff picture in ${t.league === 'mlb' ? 'both leagues' : 'both conferences'}.</p>
+      <div class="filters" style="padding:10px 14px"><div class="seg" id="aroundSeg"><button data-m="pic" class="on">Playoff picture: ${t.league === 'mlb' ? 'AL &amp; NL' : t.league === 'nfl' ? 'AFC &amp; NFC' : 'East &amp; West'}</button><button data-m="std">${t.league === 'nba' ? 'Full standings' : 'All divisions'}</button></div><a class="btn small ghost" href="#/league/${t.league}">Open ${LEAGUES[t.league].short} page ›</a></div><div id="aroundBox"></div></div>`;
+  const around = m => { const box = $('#aroundBox'); if (m === 'pic') leaguePicture(t.league, pic.table, pic, box); else leagueStandings(t.league, pic.table, pic, box); };
+  $('#aroundSeg').addEventListener('click', e => { const b = e.target.closest('[data-m]'); if (!b) return; $$('#aroundSeg button').forEach(x => x.classList.toggle('on', x === b)); around(b.dataset.m); });
+  around('pic');
   const draw = i => { const s = pic.scopes[i]; $('#raceBox').innerHTML = raceTableHtml(pic, s, `race-${t.key}-${s.key}`); $('#scopeNote').textContent = s.cutAfter ? `Red line = playoff cut${s.cutAfter2 ? 's' : ''}. Your team is highlighted.` : 'Your team is highlighted.'; };
   $('#scopeSeg').addEventListener('click', e => { const b = e.target.closest('[data-i]'); if (!b) return; $$('#scopeSeg button').forEach(x => x.classList.toggle('on', x === b)); draw(+b.dataset.i); });
   const start = pic.kind === 'nba' ? 0 : 1;
@@ -68,9 +73,49 @@ function pictureCardHtml(pic, t) {
 }
 
 /* ---------- League leaders card grid ---------- */
-function leaderListsHtml(groups) {
-  return groups.map(g => `<div class="section" style="margin-top:22px"><h2 style="font-size:1.5rem">${esc(g.title)}</h2><div class="grid g3">${g.lists.map(l => `<div class="card lcard"><h3 style="font-size:1.15rem">${esc(l.label)}</h3>
-    <table class="data lt"><tbody>${l.rows.map(r => `<tr class="${r.philly ? 'hl' : ''}"><td class="rk">${r.rank}</td><td><div class="pname"><img src="${esc(r.head || r.logo)}" alt="" style="width:30px;height:30px" onerror="this.src='${esc(r.logo)}'"><div style="min-width:0"><a href="${r.mlbId ? `https://www.mlb.com/player/${r.mlbId}` : r.id ? `https://www.espn.com/${location.hash.includes('nba') ? 'nba' : 'nfl'}/player/_/id/${r.id}` : '#'}" target="_blank" rel="noopener" style="color:inherit">${esc(r.name)}</a>${r.philly ? ' <span class="badge gold" style="padding:1px 6px">Philly</span>' : ''}<div class="small dim">${esc(r.abbr || '')}${r.extra?.length ? ' · ' + r.extra.map((x, i) => `${esc(x)} ${esc(l.cols[i] || '')}`).join(' · ') : ''}</div></div></div></td><td class="num"><b>${esc(r.value)}</b>${l.main ? ` <span class="dim small">${esc(l.main)}</span>` : ''}</td></tr>`).join('')}</tbody></table></div>`).join('')}</div></div>`).join('');
+/** Link for a player name in any leaderboard: Philly players open our player card, others go to ESPN / MLB. */
+function lbPlayerLink(lg, r, rmap) {
+  const t = TEAMS[LEAGUES[lg].team];
+  const pid = r.philly ? (r.mlbId ? rmap?.get(normName(r.name)) : r.id) : null;
+  if (pid) return `<a href="javascript:void(0)" data-player="${pid}" data-team="${t.key}" data-name="${esc(r.name)}"><b>${esc(r.name)}</b></a>`;
+  const url = r.mlbId ? `https://www.mlb.com/player/${r.mlbId}` : r.id ? `https://www.espn.com/${lg}/player/_/id/${r.id}` : '';
+  return url ? `<a href="${url}" target="_blank" rel="noopener" style="color:inherit"><b>${esc(r.name)}</b></a>` : `<b>${esc(r.name)}</b>`;
+}
+function leaderListsHtml(groups, lg) {
+  return groups.map(g => `<div class="section" style="margin-top:22px"><h2 style="font-size:1.5rem">${esc(g.title)}</h2><div class="grid g3">${g.lists.map(l => `<div class="card lcard"><button class="lchead" data-lb="${l.league}|${l.key}|${l.start ?? ''}"><h3 style="font-size:1.15rem;margin:0">${esc(l.label)}</h3><span>Full leaderboard ›</span></button>
+    <table class="data lt"><tbody>${l.rows.map(r => `<tr class="${r.philly ? 'hl' : ''}"><td class="rk">${r.rank}</td><td><div class="pname"><img src="${esc(r.head || r.logo)}" alt="" style="width:30px;height:30px" onerror="this.src='${esc(r.logo)}'"><div style="min-width:0">${lbPlayerLink(l.league, r)}${r.philly ? ' <span class="badge gold" style="padding:1px 6px">Philly</span>' : ''}<div class="small dim">${esc(r.abbr || '')}${r.extra?.length ? ' · ' + r.extra.map((x, i) => `${esc(x)} ${esc(l.cols[i] || '')}`).join(' · ') : ''}</div></div></div></td><td class="num"><b>${esc(r.value)}</b>${l.main ? ` <span class="dim small">${esc(l.main)}</span>` : ''}</td></tr>`).join('')}</tbody></table></div>`).join('')}</div></div>`).join('');
+}
+
+/* ---------- Leaderboard pop-up (every leader tile on the site opens this) ---------- */
+document.addEventListener('click', e => {
+  const b = e.target.closest('[data-lb]'); if (!b || e.target.closest('[data-player]')) return;
+  e.preventDefault(); const [lg, key, yr, scope] = b.dataset.lb.split('|'); openLeaderboard(lg, key, yr ? +yr : null, scope || 'league');
+});
+async function openLeaderboard(lg, key, year, scope = 'league') {
+  const L = LEAGUES[lg], t = TEAMS[L.team], spec = LB[lg]?.[key]; if (!spec) return;
+  openModal(`<div class="pl-head" style="--team:${t.primary}"><img src="${teamLogoOn(t)}" alt="" style="width:80px;height:80px;object-fit:contain;background:none"><div><div class="small" style="opacity:.85;letter-spacing:.1em;text-transform:uppercase">${L.short} leaderboard · <span id="lbSeason"></span></div><h2>${esc(spec.label)}</h2></div></div>
+    <div class="pl-body"><div class="seg" id="lbSeg" style="margin-bottom:14px"><button data-s="league">${L.short} leaders</button><button data-s="team">${esc(t.nick)} only</button></div><div id="lbBox">${spinner()}</div>
+    <div class="row" style="margin-top:16px"><a class="btn small" href="#/league/${lg}/leaders">All ${L.short} leaderboards →</a></div></div>`);
+  const rmap = lg === 'mlb' ? new Map(((await safe(getRosterCached('phillies'), null))?.players || []).map(p => [normName(p.name), p.id])) : null;
+  const draw = async sc => {
+    $$('#lbSeg button').forEach(x => x.classList.toggle('on', x.dataset.s === sc));
+    $('#lbBox').innerHTML = spinner();
+    const d = sc === 'team' ? await safe(API.teamLeaderboard(lg, key, year), null) : await safe(API.leaderboard(lg, key, year, 50), null);
+    if (!$('#lbBox')) return;
+    if (d) $('#lbSeason').textContent = `${d.season} season`;
+    if (!d || !d.rows.length) { $('#lbBox').innerHTML = errBox(sc === 'team' ? `No ${t.nick} players have a number in this category yet.` : 'This leaderboard is not available yet.'); return; }
+    const cols = [
+      { key: 'rank', label: sc === 'team' ? 'Team' : 'Rank', num: true },
+      ...(sc === 'team' && lg !== 'mlb' ? [{ key: 'lgRank', label: `${L.short} rank`, num: true, fmt: r => (r.lgRank ? `#${r.lgRank}` : '') }] : []),
+      { key: 'name', label: 'Player', fmt: r => `<div class="pname"><img src="${esc(r.head || r.logo)}" alt="" onerror="this.src='${esc(r.logo)}'"><div style="min-width:0">${lbPlayerLink(lg, r, rmap)}<div class="small dim">${esc(r.abbr || '')}</div></div></div>` },
+      { key: 'value', label: d.main || spec.label, num: true, sortVal: r => parseFloat(String(r.value).replace(/,/g, '')) || 0, fmt: r => `<b>${esc(r.value)}</b>` },
+      ...d.cols.map((c, i) => ({ key: 'x' + i, label: c, num: true, sortVal: r => parseFloat(String(r.extra[i]).replace(/,/g, '')) || 0, fmt: r => esc(r.extra[i] ?? '') })),
+    ];
+    $('#lbBox').innerHTML = renderTable(`lb-${lg}-${key}-${sc}-${year ?? 'c'}`, cols, d.rows, { rowClass: r => (r.philly && sc === 'league' ? 'hl' : '') }) +
+      (sc === 'league' ? `<p class="small dim" style="margin-top:8px">${d.rows.some(r => r.philly) ? `${t.nick} players are highlighted.` : `No ${t.nick} player in the top ${d.rows.length}. Switch to "${t.nick} only" to see where they rank.`}${lg === 'nba' ? ' Minimum games required to qualify.' : ''}</p>` : '');
+  };
+  $('#lbSeg').addEventListener('click', e => { const b = e.target.closest('[data-s]'); if (b) draw(b.dataset.s); });
+  draw(scope);
 }
 
 /* ---------- League pages ---------- */
@@ -141,16 +186,16 @@ function leaguePicture(key, table, pic, body) {
   }).join('')}</div><p class="small dim" style="margin-top:12px">"vs cut": + = games ahead of the last playoff spot, otherwise games behind it.</p>`;
 }
 async function leagueLeadersTab(key, table, body, alive) {
-  const opts = key === 'mlb' ? null : [[null, 'Current season'], [key === 'nba' ? 2025 : nowYear() - 1, 'Last season']];
+  const cur = key === 'nba' ? table.year : nowYear();
+  const opts = [[null, key === 'nba' ? `${cur}–${String(cur + 1).slice(2)}${table.fallback ? ' (last season)' : ''}` : `${cur} season`], [cur - 1, key === 'nba' ? `${cur - 1}–${String(cur).slice(2)}` : `${cur - 1}`]];
   let year = null;
   const draw = async () => {
     $('#ldBox').innerHTML = spinner('Loading league leaders…');
-    const groups = await API.leagueLeaders(key, key === 'nba' ? (year ?? (table.fallback ? table.year + 1 : null)) : year); if (!alive()) return;
-    $('#ldBox').innerHTML = groups.some(g => g.lists.length) ? leaderListsHtml(groups) : errBox('League leaders are not available yet.');
+    const groups = await API.leagueLeaders(key, year); if (!alive()) return;
+    $('#ldBox').innerHTML = groups.some(g => g.lists.length) ? leaderListsHtml(groups, key) : errBox('League leaders are not available yet.');
   };
-  body.innerHTML = `<div class="filters" style="padding:10px 14px">${opts ? `<div class="seg" id="ldSeg">${opts.map(([v, l], i) => `<button data-i="${i}" class="${i === 0 ? 'on' : ''}">${l}</button>`).join('')}</div>` : '<span class="muted small">Qualified players, current season.</span>'}<span class="muted small">Philadelphia players are highlighted.</span></div><div id="ldBox"></div>`;
-  $('#ldSeg')?.addEventListener('click', e => { const b = e.target.closest('[data-i]'); if (!b) return; $$('#ldSeg button').forEach(x => x.classList.toggle('on', x === b)); year = opts[+b.dataset.i][0]; draw(); });
-  if (key === 'nba' && table.fallback) $('#ldBox').insertAdjacentHTML('beforebegin', `<div class="errbox" style="margin-bottom:12px">The ${table.year + 1}–${String(table.year + 2).slice(2)} season hasn't started, so these are the ${table.year}–${String(table.year + 1).slice(2)} leaders.</div>`);
+  body.innerHTML = `<div class="filters" style="padding:10px 14px"><div class="seg" id="ldSeg">${opts.map(([v, l], i) => `<button data-i="${i}" class="${i === 0 ? 'on' : ''}">${l}</button>`).join('')}</div><span class="muted small">Philadelphia players are highlighted. Tap a category for its full leaderboard.</span></div><div id="ldBox"></div>`;
+  $('#ldSeg').addEventListener('click', e => { const b = e.target.closest('[data-i]'); if (!b) return; $$('#ldSeg button').forEach(x => x.classList.toggle('on', x === b)); year = opts[+b.dataset.i][0]; draw(); });
   draw();
 }
 async function leagueNewsTab(key, body, alive) {

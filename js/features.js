@@ -111,14 +111,15 @@ async function playerStatsPanel(t, year, el) {
 
 /** "Stars of the season" tiles (clickable). */
 async function starsHtml(t, year) {
-  const [lead, roster] = await Promise.all([safe(API.leaders(t, year), []), year == null ? safe(API.roster(t)) : Promise.resolve(null)]);
+  const lead = await safe(API.leaders(t, year), []);
   if (!lead?.length) return '<div class="muted small">No season leaders on file.</div>';
-  const rmap = new Map((roster?.players || []).map(p => [p.name.toLowerCase(), p.id]));
-  return `<div class="stars">${lead.map(x => {
-    const pid = x.id || (x.mlbId && rmap.get(x.name.toLowerCase()));
-    const inner = `<img src="${esc(x.headshot)}" alt="" loading="lazy" onerror="this.style.visibility='hidden'"><div><div class="v">${esc(x.value)}</div><div class="c">${esc(x.cat)}</div><div class="n">${esc(x.name)}</div></div>`;
-    return pid ? `<button class="star" data-player="${pid}" data-team="${t.key}" data-name="${esc(x.name)}">${inner}</button>` : x.mlbId ? `<a class="star" href="https://www.mlb.com/player/${x.mlbId}" target="_blank" rel="noopener" style="color:inherit">${inner}</a>` : `<div class="star">${inner}</div>`;
-  }).join('')}</div>`;
+  return `<div class="stars">${lead.map(x => leaderTileHtml(t, x)).join('')}</div><p class="small dim" style="margin-top:8px">Tap a tile for the full leaderboard.</p>`;
+}
+/** One team-leader tile. Tapping it opens the leaderboard for that stat. */
+function leaderTileHtml(t, x) {
+  const lb = x.lbKey && LB[t.league]?.[x.lbKey] ? `${t.league}|${x.lbKey}|${x.year ?? ''}` : '';
+  const inner = `<img src="${esc(x.headshot)}" alt="" loading="lazy" onerror="this.style.visibility='hidden'"><div><div class="v">${esc(x.value)}</div><div class="c">${esc(x.cat)}</div><div class="n">${esc(x.name)}</div></div>${lb ? '<span class="go">›</span>' : ''}`;
+  return lb ? `<button class="star" data-lb="${lb}">${inner}</button>` : `<div class="star">${inner}</div>`;
 }
 
 /* ---------- Timeline rail (key years stick out; click any year for detail) ---------- */

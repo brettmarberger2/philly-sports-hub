@@ -1,6 +1,6 @@
 /* Team page shell + live-data tabs: overview, roster, depth chart, contracts, stats, schedule */
 const TAB_LIST = [
-  ['overview', 'Overview'], ['picture', 'Standings & Playoffs'], ['roster', 'Roster'], ['depth', 'Depth Chart'], ['contracts', 'Contracts'], ['stats', 'Stats'], ['schedule', 'Schedule & Results'],
+  ['overview', 'Overview'], ['picture', 'Standings & Playoffs'], ['schedule', 'Schedule & Results'], ['stats', 'Stats'], ['roster', 'Roster'], ['depth', 'Depth Chart'], ['contracts', 'Contracts'],
   ['coaches', 'Coaches'], ['history', 'History'], ['legends', 'Legends'], ['stadium', 'Stadium'], ['shop', 'Shop'],
 ];
 const yearLabel = (t, y) => (t.league === 'nba' ? `${y - 1}–${String(y).slice(2)}` : String(y));
@@ -22,7 +22,7 @@ async function viewTeam({ parts, q, mount, alive }) {
         <div class="row small muted"><span>🏆 ${tot.titles} titles</span><span>🏅 ${tot.finals + tot.titles} finals</span><span>📈 ${tot.w}-${tot.l}${tot.t ? '-' + tot.t : ''} all-time</span></div></div>
       <div class="stats" id="headStats"></div>
     </div>
-    <div class="tabs" id="tabs">${TAB_LIST.map(([k, l]) => `<a href="#/team/${key}/${k}" class="${k === tab ? 'active' : ''}">${l}</a>`).join('')}</div>
+    <div class="tabs" id="tabs">${TAB_LIST.map(([k, l]) => `${k === 'coaches' ? '<span class="tabsep">Club &amp; history</span>' : ''}<a href="#/team/${key}/${k}" class="${k === tab ? 'active' : ''}">${l}</a>`).join('')}</div>
     <div id="tabBody">${spinner()}</div>`;
   safe(API.team(t)).then(info => {
     if (!alive() || !info) return;
@@ -67,7 +67,7 @@ async function tabOverview(t, { mount, alive }) {
       <div class="card"><h3>Franchise at a glance</h3>${glanceHtml(t)}</div>
       <div class="card"><h3>Did you know?</h3>${CUR.teamFacts[t.key].map(f => `<div class="fact">${esc(f)}</div>`).join('')}</div>
     </div></div>`;
-  const infoP = safe(API.team(t)), gsP = safe(API.gameStatus(t)), rosterP = safe(API.roster(t)), stdP = safe(API.standings(t)), leadP = safe(API.leaders(t), []), newsP = safe(API.news(t, 6), []);
+  const infoP = safe(API.team(t)), gsP = safe(API.gameStatus(t)), rosterP = safe(API.roster(t)), stdP = safe(API.standings(t)), leadP = (t.league === 'nba' ? API.nbaTable().then(tb => API.leaders(t, tb.fallback ? tb.year : null)) : API.leaders(t)).catch(() => []), newsP = safe(API.news(t, 6), []);
 
   safe(API.picture(t), null).then(pic => { if (alive()) $('#ovPicture').innerHTML = pic ? pictureCardHtml(pic, t) : '<h3>Playoff picture</h3><div class="muted small">Standings are not available right now.</div>'; });
   const drawGames = async () => {
@@ -85,7 +85,7 @@ async function tabOverview(t, { mount, alive }) {
   stdP.then(s => { if (alive()) $('#ovStd').innerHTML = standingsTable(s, t); });
   leadP.then(l => {
     if (!alive()) return;
-    $('#ovLead').innerHTML = l?.length ? `<div class="grid g-auto" style="grid-template-columns:repeat(auto-fill,minmax(200px,1fr))">${l.map(x => `<div class="stat-tile row" style="flex-wrap:nowrap"><img src="${esc(x.headshot)}" width="46" height="46" style="border-radius:50%;object-fit:cover;background:var(--card)" alt="" onerror="this.style.visibility='hidden'"><div><div class="v">${esc(x.value)}</div><div class="l">${esc(x.cat)}</div><div class="small">${x.id ? `<a href="javascript:void(0)" data-player="${x.id}" data-team="${t.key}">${esc(x.name)}</a>` : esc(x.name)}</div></div></div>`).join('')}</div>` : `<div class="muted small">Season leaders will appear once games have been played.</div>`;
+    $('#ovLead').innerHTML = l?.length ? `<div class="stars">${l.map(x => leaderTileHtml(t, x)).join('')}</div><p class="small dim" style="margin-top:8px">${t.league === 'nba' && l[0]?.year != null ? 'Last season. ' : ''}Tap a tile for the full leaderboard.</p>` : `<div class="muted small">Season leaders will appear once games have been played.</div>`;
   });
   newsP.then(n => { if (alive()) $('#ovNews').innerHTML = n?.length ? n.map(a => `<a class="news" href="${esc(a.link)}" target="_blank" rel="noopener">${a.img ? `<img src="${esc(a.img)}" alt="" loading="lazy">` : ''}<div><div class="t">${esc(a.title)}</div><div class="small muted">${ago(a.date)}</div></div></a>`).join('') : errBox('No headlines right now.'); });
 
@@ -167,17 +167,22 @@ async function tabDepth(t, { mount, alive }) {
   const [d, r] = await Promise.all([API.depth(t), safe(API.roster(t))]); if (!alive()) return;
   const byId = new Map((r?.players || []).map(p => [String(p.id), p]));
   if (!d.charts.length) { mount.innerHTML = errBox('No depth chart is published right now.'); return; }
-  const draw = idx => {
+  let lines = null, idx = 0;
+  const lineFor = p => lines ? (lines.lines.get(String(p.id)) || lines.byName.get(normName(p.name)) || '') : null;
+  const draw = () => {
     const ch = d.charts[idx];
-    $('#depthBody').innerHTML = `<div class="${t.league !== 'mlb' ? 'field' : ''}"><div class="depth-grid">${ch.rows.map(row => `<div class="depth-pos"><h4><span>${esc(row.abbr)}</span><span class="dim small" style="text-transform:none;letter-spacing:0;font-family:var(--font)">${esc(row.label)}</span></h4><ol>${row.players.map((p, i) => {
-      const pl = byId.get(String(p.id));
-      return `<li data-player="${p.id}" data-team="${t.key}"><span class="rank">${i + 1}</span><img src="${headshot(t, p.id)}" alt="" loading="lazy" onerror="this.style.visibility='hidden'"><span style="flex:1">${esc(p.name)}</span>${pl?.injuries?.length ? `<span class="badge bad" title="${esc(pl.injuries[0].status)}">${esc(pl.injuries[0].status.slice(0, 3))}</span>` : ''}${pl?.jersey ? `<span class="jersey">${esc(pl.jersey)}</span>` : ''}</li>`;
-    }).join('')}</ol></div>`).join('')}</div></div>`;
+    $('#depthBody').innerHTML = `<div class="depth-grid wide">${ch.rows.map(row => `<div class="depth-pos"><h4><span>${esc(row.abbr)}</span><span class="dim small" style="text-transform:none;letter-spacing:0;font-family:var(--font)">${esc(row.label)}</span></h4><ol>${row.players.map((p, i) => {
+      const pl = byId.get(String(p.id)), ln = lineFor(p);
+      const meta = [pl?.jersey ? `#${pl.jersey}` : '', pl?.age ? `Age ${pl.age}` : '', pl?.exp != null ? (pl.exp === 0 ? 'Rookie' : `${pl.exp} yr${pl.exp === 1 ? '' : 's'}`) : '', pl?.height || ''].filter(Boolean).join(' · ');
+      return `<li data-player="${p.id}" data-team="${t.key}" data-name="${esc(p.name)}" class="${i === 0 ? 'starter' : ''}"><span class="rank">${i + 1}</span><img src="${headshot(t, p.id)}" alt="" loading="lazy" onerror="this.style.visibility='hidden'"><div class="dp"><div class="dn">${esc(p.name)}${pl?.injuries?.length ? ` <span class="badge bad">${esc(pl.injuries[0].status)}</span>` : ''}</div><div class="dm">${esc(meta)}</div>${ln === null ? '<div class="ds dim">Loading stats…</div>' : ln ? `<div class="ds">${esc(ln)}</div>` : `<div class="ds dim">${esc(lines.empty || 'No stats yet this season')}</div>`}</div></li>`;
+    }).join('')}</ol></div>`).join('')}</div>`;
   };
-  mount.innerHTML = `<div class="filters"><div class="chips" id="dchips">${d.charts.map((c, i) => `<button class="chip ${i === 0 ? 'on' : ''}" data-i="${i}">${esc(c.name)}</button>`).join('')}</div></div><div id="depthBody"></div>
-    <p class="disc">Depth charts are published by ESPN and reflect the team's current unofficial ordering (1 = starter). Click a player for details.</p>`;
-  $('#dchips').addEventListener('click', e => { const b = e.target.closest('[data-i]'); if (!b) return; $$('#dchips .chip').forEach(c => c.classList.toggle('on', c === b)); draw(+b.dataset.i); });
-  draw(0);
+  mount.innerHTML = `<div class="filters"><div class="seg" id="dchips">${d.charts.map((c, i) => `<button class="${i === 0 ? 'on' : ''}" data-i="${i}">${esc(c.name)}</button>`).join('')}</div><span class="muted small" id="dlabel"></span></div><div id="depthBody"></div>
+    <p class="disc">Depth chart from ESPN (1 = starter, highlighted). Each player shows jersey, age, experience and their season stat line. Tap a player for the full profile.</p>`;
+  $('#dchips').addEventListener('click', e => { const b = e.target.closest('[data-i]'); if (!b) return; $$('#dchips button').forEach(c => c.classList.toggle('on', c === b)); idx = +b.dataset.i; draw(); });
+  draw();
+  lines = await safe(API.depthLines(t), { lines: new Map(), byName: new Map(), label: '' }); if (!alive()) return;
+  $('#dlabel').textContent = lines.label ? `Stats: ${lines.label}` : ''; draw();
 }
 
 /* ---------- Contracts ---------- */
@@ -254,11 +259,11 @@ async function tabStats(t, { mount, alive }) {
       playerStatsPanel(t, year, $('#pstats'));
       starsHtml(t, year).then(h => alive() && ($('#starsBox').innerHTML = h));
       $('#rankBox').innerHTML = spinner();
-      const espnYear = t.league === 'nba' ? (year ?? nbaStart) + 1 : (year ?? nowYear());
-      const groups = await safe(API.leagueLeaders(t.league, espnYear), []); if (!alive()) return;
-      const ids = (await safe(API.teamPlayerStats(t, year), null))?.ids;
-      const mine = (groups || []).flatMap(g => g.lists.map(l => l.rows.filter(r => (ids && ids.size ? ids.has(String(r.id)) : r.philly)).map(r => ({ ...r, cat: l.label, main: l.main })))).flat();
-      $('#rankBox').innerHTML = mine.length ? `<div class="stars">${mine.map(r => `<a class="star" href="https://www.espn.com/${t.league}/player/_/id/${r.id}" target="_blank" rel="noopener" style="color:inherit"><img src="${esc(r.head || '')}" alt="" onerror="this.style.visibility='hidden'"><div><div class="v">#${r.rank} · ${esc(r.value)}</div><div class="c">${esc(r.cat)}</div><div class="n">${esc(r.name)}</div></div></a>`).join('')}</div>` : `<div class="muted small">No ${t.nick} players in the league's top 10 of the major categories.</div>`;
+      const groups = await safe(API.leagueLeaders(t.league, year), []); if (!alive()) return;
+      const mine = (groups || []).flatMap(g => g.lists.map(l => l.rows.filter(r => r.philly).map(r => ({ ...r, cat: l.label, main: l.main, lbKey: l.key, start: l.start })))).flat();
+      $('#rankBox').innerHTML = mine.length ? `<div class="stars">${mine.map(r => `<button class="star" data-lb="${t.league}|${r.lbKey}|${r.start ?? ''}"><img src="${esc(r.head || '')}" alt="" onerror="this.style.visibility='hidden'"><div><div class="v">#${r.rank} · ${esc(r.value)}</div><div class="c">${esc(r.cat)}</div><div class="n">${esc(r.name)}</div></div><span class="go">›</span></button>`).join('')}</div>` : `<div class="muted small">No ${t.nick} players in the league's top 10 of the major categories.</div>`;
+
+
     };
     $('#ysSeg').addEventListener('click', e => { const b = e.target.closest('[data-i]'); if (!b) return; $$('#ysSeg button').forEach(x => x.classList.toggle('on', x === b)); refresh(seasons[+b.dataset.i][0]); });
     refresh(seasons[0][0]);

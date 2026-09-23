@@ -216,49 +216,89 @@ function nbaPicture(t, table) {
   return { kind: 'nba', us, tone, headline, sub, bullets: bul, scopes, tiles, left, G, fin, inField: us.seed <= 10, seed: us.seed, statusShort: `${us.conf} #${us.seed}${fin ? ' (final)' : ''}` };
 }
 
-/* ---------------- League leaders (league-wide top 10s) ---------------- */
+/* ---------------- Leaderboards (one registry drives every leader list on the site) ---------------- */
 const ESPN_W = 'https://site.web.api.espn.com/apis/common/v3/sports';
-async function espnLeaderList(sport, league, spec, season, qualified) {
-  const T = Object.values(TEAMS).find(x => x.league === league);
-  const j = await safe(getJSON(`${ESPN_W}/${sport}/${league}/statistics/byathlete?region=us&lang=en&contentorigin=espn&isqualified=${qualified}&limit=10&season=${season}&seasontype=2${spec.cat ? `&category=${encodeURIComponent(spec.cat)}` : ''}&sort=${encodeURIComponent(spec.sort)}`, 600), null);
-  if (!j?.athletes) return null;
-  const val = (a, c, n) => { const cat = j.categories.find(x => x.name === c), idx = cat?.names.indexOf(n); const ac = a.categories.find(x => x.name === c); return idx >= 0 && ac ? ac.totals[idx] : ''; };
-  return { label: spec.label, main: spec.mainLabel, cols: spec.extra.map(e => e[2]), rows: j.athletes.map((a, i) => ({ rank: i + 1, id: a.athlete.id, name: a.athlete.displayName, abbr: a.athlete.teamShortName, logo: teamLogo(T, a.athlete.teamShortName || 'phi'), value: val(a, spec.c, spec.main), extra: spec.extra.map(e => val(a, e[0], e[1])), philly: a.athlete.teamShortName === 'PHI', head: a.athlete.headshot?.href })) };
-}
-API.leagueLeaders = async (leagueKey, year = null) => {
-  if (leagueKey === 'mlb') {
-    const y = year ?? nowYear();
-    const mk = async (group, cats) => { const j = await safe(getJSON(`${MLB_API}/stats/leaders?leaderCategories=${cats.map(c => c[0]).join(',')}&season=${y}&sportId=1&limit=10&statGroup=${group}`, 600), null); return cats.map(([k, label]) => { const c = j?.leagueLeaders?.find(x => x.leaderCategory === k); return c ? { label, rows: c.leaders.map(l => ({ rank: l.rank, name: l.person.fullName, mlbId: l.person.id, abbr: l.team?.name?.split(' ').pop(), logo: `https://www.mlbstatic.com/team-logos/${l.team.id}.svg`, value: l.value, philly: l.team.id === 143, extra: [], head: `https://img.mlbstatic.com/mlb-photos/image/upload/w_80,q_auto:best/v1/people/${l.person.id}/headshot/67/current` })), cols: [] } : null; }).filter(Boolean); };
-    const [bat, pit] = await Promise.all([mk('hitting', [['battingAverage', 'Batting average'], ['homeRuns', 'Home runs'], ['runsBattedIn', 'RBI'], ['onBasePlusSlugging', 'OPS'], ['stolenBases', 'Stolen bases'], ['hits', 'Hits']]), mk('pitching', [['earnedRunAverage', 'ERA'], ['wins', 'Wins'], ['strikeouts', 'Strikeouts'], ['saves', 'Saves'], ['walksAndHitsPerInningPitched', 'WHIP'], ['inningsPitched', 'Innings pitched']])]);
-    return [{ title: 'Batting leaders', lists: bat }, { title: 'Pitching leaders', lists: pit }];
-  }
-  if (leagueKey === 'nfl') {
-    const s = year ?? nowYear(), R = (label, cat, sort, c, main, extra, mainLabel) => ({ label, cat, sort, c, main, extra, mainLabel });
-    const specs = [
-      R('Passing yards', 'offense:passing', 'passing:passingYards:desc', 'passing', 'passingYards', [['passing', 'passingTouchdowns', 'TD'], ['passing', 'interceptions', 'INT'], ['passing', 'QBRating', 'RTG']], 'YDS'),
-      R('Rushing yards', 'offense:rushing', 'rushing:rushingYards:desc', 'rushing', 'rushingYards', [['rushing', 'rushingAttempts', 'CAR'], ['rushing', 'yardsPerRushAttempt', 'YPC'], ['rushing', 'rushingTouchdowns', 'TD']], 'YDS'),
-      R('Receiving yards', 'offense:receiving', 'receiving:receivingYards:desc', 'receiving', 'receivingYards', [['receiving', 'receptions', 'REC'], ['receiving', 'receivingTargets', 'TGT'], ['receiving', 'receivingTouchdowns', 'TD']], 'YDS'),
-      R('Sacks', 'defense', 'defensive:sacks:desc', 'defensive', 'sacks', [['defensive', 'totalTackles', 'TKL'], ['defensive', 'tacklesForLoss', 'TFL']], 'SACKS'),
-      R('Interceptions', 'defense', 'defensiveInterceptions:interceptions:desc', 'defensiveinterceptions', 'interceptions', [['defensiveinterceptions', 'interceptionYards', 'YDS'], ['defensiveinterceptions', 'interceptionTouchdowns', 'TD']], 'INT'),
-      R('Tackles', 'defense', 'defensive:totalTackles:desc', 'defensive', 'totalTackles', [['defensive', 'soloTackles', 'SOLO'], ['defensive', 'sacks', 'SACK']], 'TKL'),
-    ];
-    const lists = (await Promise.all(specs.map(sp => espnLeaderList('football', 'nfl', sp, s, false)))).filter(Boolean);
-    return [{ title: `${s} season leaders`, lists }];
-  }
-  const s = year ?? (new Date().getMonth() >= 8 ? nowYear() : nowYear() - 1) + 1;
-  const R = (label, sort, c, main, extra, mainLabel) => ({ label, sort, c, main, extra, mainLabel });
-  const specs = [
-    R('Points per game', 'offensive.avgPoints:desc', 'offensive', 'avgPoints', [['general', 'gamesPlayed', 'GP'], ['offensive', 'fieldGoalPct', 'FG%'], ['offensive', 'threePointFieldGoalPct', '3P%']], 'PPG'),
-    R('Rebounds per game', 'general.avgRebounds:desc', 'general', 'avgRebounds', [['general', 'gamesPlayed', 'GP'], ['offensive', 'avgPoints', 'PPG']], 'RPG'),
-    R('Assists per game', 'offensive.avgAssists:desc', 'offensive', 'avgAssists', [['general', 'gamesPlayed', 'GP'], ['offensive', 'avgPoints', 'PPG'], ['offensive', 'avgTurnovers', 'TO']], 'APG'),
-    R('Steals per game', 'defensive.avgSteals:desc', 'defensive', 'avgSteals', [['general', 'gamesPlayed', 'GP']], 'SPG'),
-    R('Blocks per game', 'defensive.avgBlocks:desc', 'defensive', 'avgBlocks', [['general', 'gamesPlayed', 'GP']], 'BPG'),
-    R('3-pointers made per game', 'offensive.avgThreePointFieldGoalsMade:desc', 'offensive', 'avgThreePointFieldGoalsMade', [['general', 'gamesPlayed', 'GP'], ['offensive', 'threePointFieldGoalPct', '3P%']], '3PM'),
-  ];
-  const lists = (await Promise.all(specs.map(sp => espnLeaderList('basketball', 'nba', sp, s, true)))).filter(Boolean);
-  return [{ title: `${s - 1}–${String(s).slice(2)} season leaders`, lists }];
+const _R = (label, cat, sort, c, main, extra, mainLabel) => ({ label, cat, sort, c, main, extra, mainLabel });
+const LB = {
+  mlb: {
+    battingAverage: { label: 'Batting average', group: 'hitting' }, homeRuns: { label: 'Home runs', group: 'hitting' }, runsBattedIn: { label: 'RBI', group: 'hitting' },
+    onBasePlusSlugging: { label: 'OPS', group: 'hitting' }, hits: { label: 'Hits', group: 'hitting' }, stolenBases: { label: 'Stolen bases', group: 'hitting' },
+    earnedRunAverage: { label: 'ERA', group: 'pitching' }, strikeouts: { label: 'Strikeouts (pitching)', group: 'pitching' }, wins: { label: 'Wins', group: 'pitching' },
+    saves: { label: 'Saves', group: 'pitching' }, walksAndHitsPerInningPitched: { label: 'WHIP', group: 'pitching' }, inningsPitched: { label: 'Innings pitched', group: 'pitching' },
+  },
+  nfl: {
+    passingYards: _R('Passing yards', 'offense:passing', 'passing:passingYards:desc', 'passing', 'passingYards', [['passing', 'passingTouchdowns', 'TD'], ['passing', 'interceptions', 'INT'], ['passing', 'QBRating', 'RTG']], 'YDS'),
+    passingTouchdowns: _R('Passing touchdowns', 'offense:passing', 'passing:passingTouchdowns:desc', 'passing', 'passingTouchdowns', [['passing', 'passingYards', 'YDS'], ['passing', 'interceptions', 'INT']], 'TD'),
+    rushingYards: _R('Rushing yards', 'offense:rushing', 'rushing:rushingYards:desc', 'rushing', 'rushingYards', [['rushing', 'rushingAttempts', 'CAR'], ['rushing', 'yardsPerRushAttempt', 'YPC'], ['rushing', 'rushingTouchdowns', 'TD']], 'YDS'),
+    receivingYards: _R('Receiving yards', 'offense:receiving', 'receiving:receivingYards:desc', 'receiving', 'receivingYards', [['receiving', 'receptions', 'REC'], ['receiving', 'receivingTargets', 'TGT'], ['receiving', 'receivingTouchdowns', 'TD']], 'YDS'),
+    receptions: _R('Receptions', 'offense:receiving', 'receiving:receptions:desc', 'receiving', 'receptions', [['receiving', 'receivingYards', 'YDS'], ['receiving', 'receivingTouchdowns', 'TD']], 'REC'),
+    receivingTouchdowns: _R('Receiving touchdowns', 'offense:receiving', 'receiving:receivingTouchdowns:desc', 'receiving', 'receivingTouchdowns', [['receiving', 'receptions', 'REC'], ['receiving', 'receivingYards', 'YDS']], 'TD'),
+    sacks: _R('Sacks', 'defense', 'defensive:sacks:desc', 'defensive', 'sacks', [['defensive', 'totalTackles', 'TKL'], ['defensive', 'tacklesForLoss', 'TFL']], 'SACKS'),
+    interceptions: _R('Interceptions', 'defense', 'defensiveInterceptions:interceptions:desc', 'defensiveinterceptions', 'interceptions', [['defensiveinterceptions', 'interceptionYards', 'YDS'], ['defensiveinterceptions', 'interceptionTouchdowns', 'TD']], 'INT'),
+    totalTackles: _R('Tackles', 'defense', 'defensive:totalTackles:desc', 'defensive', 'totalTackles', [['defensive', 'soloTackles', 'SOLO'], ['defensive', 'sacks', 'SACK']], 'TKL'),
+  },
+  nba: {
+    pointsPerGame: _R('Points per game', null, 'offensive.avgPoints:desc', 'offensive', 'avgPoints', [['general', 'gamesPlayed', 'GP'], ['offensive', 'fieldGoalPct', 'FG%'], ['offensive', 'threePointFieldGoalPct', '3P%']], 'PPG'),
+    reboundsPerGame: _R('Rebounds per game', null, 'general.avgRebounds:desc', 'general', 'avgRebounds', [['general', 'gamesPlayed', 'GP'], ['offensive', 'avgPoints', 'PPG']], 'RPG'),
+    assistsPerGame: _R('Assists per game', null, 'offensive.avgAssists:desc', 'offensive', 'avgAssists', [['general', 'gamesPlayed', 'GP'], ['offensive', 'avgTurnovers', 'TO']], 'APG'),
+    stealsPerGame: _R('Steals per game', null, 'defensive.avgSteals:desc', 'defensive', 'avgSteals', [['general', 'gamesPlayed', 'GP']], 'SPG'),
+    blocksPerGame: _R('Blocks per game', null, 'defensive.avgBlocks:desc', 'defensive', 'avgBlocks', [['general', 'gamesPlayed', 'GP']], 'BPG'),
+    threePointFieldGoalsMade: _R('3-pointers made per game', null, 'offensive.avgThreePointFieldGoalsMade:desc', 'offensive', 'avgThreePointFieldGoalsMade', [['general', 'gamesPlayed', 'GP'], ['offensive', 'threePointFieldGoalPct', '3P%']], '3PM'),
+  },
 };
-
+const LB_GROUPS = {
+  mlb: [['Batting leaders', ['battingAverage', 'homeRuns', 'runsBattedIn', 'onBasePlusSlugging', 'stolenBases', 'hits']], ['Pitching leaders', ['earnedRunAverage', 'strikeouts', 'wins', 'saves', 'walksAndHitsPerInningPitched', 'inningsPitched']]],
+  nfl: [['Offense', ['passingYards', 'passingTouchdowns', 'rushingYards', 'receivingYards', 'receptions', 'receivingTouchdowns']], ['Defense', ['sacks', 'interceptions', 'totalTackles']]],
+  nba: [['Season leaders', ['pointsPerGame', 'reboundsPerGame', 'assistsPerGame', 'stealsPerGame', 'blocksPerGame', 'threePointFieldGoalsMade']]],
+};
+/** Resolve a start-year (null = current) into the season each API expects, plus a display label. */
+async function lbSeason(league, year) {
+  if (league === 'nba') { const start = year ?? (await API.nbaTable()).year; return { start, api: start + 1, label: `${start}–${String(start + 1).slice(2)}` }; }
+  const y = year ?? nowYear(); return { start: y, api: y, label: String(y) };
+}
+/** Ids of players who actually played for the Philly team that season (ESPN tags players with their current team). */
+async function phillyIds(league, start) {
+  const t = TEAMS[LEAGUES[league].team]; const r = await safe(API.teamPlayerStats(t, start), null); return r?.ids?.size ? r.ids : null;
+}
+API.leaderboard = async (league, key, year = null, limit = 10, opts = {}) => {
+  const spec = LB[league]?.[key]; if (!spec) return null;
+  const S = await lbSeason(league, year), cur = year == null;
+  if (league === 'mlb') {
+    const [j, tbl] = await Promise.all([safe(getJSON(`${MLB_API}/stats/leaders?leaderCategories=${key}&season=${S.api}&sportId=1&limit=${limit}&statGroup=${spec.group}`, cur ? 600 : 86400), null), safe(API.mlbTable(S.api), null)]);
+    const abbr = new Map((tbl?.teams || []).map(x => [x.id, x.abbr]));
+    const c = j?.leagueLeaders?.[0];
+    return { league, key, label: spec.label, season: S.label, start: year, cols: [], main: '', rows: (c?.leaders || []).map(l => ({ rank: l.rank, name: l.person.fullName, mlbId: l.person.id, abbr: abbr.get(l.team?.id) || '', logo: `https://www.mlbstatic.com/team-logos/${l.team?.id}.svg`, value: l.value, extra: [], philly: l.team?.id === 143, head: `https://img.mlbstatic.com/mlb-photos/image/upload/w_80,q_auto:best/v1/people/${l.person.id}/headshot/67/current` })) };
+  }
+  const sport = league === 'nfl' ? 'football' : 'basketball', T = TEAMS[LEAGUES[league].team];
+  const qualified = opts.qualified ?? league === 'nba';
+  const url = p => `${ESPN_W}/${sport}/${league}/statistics/byathlete?region=us&lang=en&contentorigin=espn&isqualified=${qualified}&limit=${limit}&page=${p}&season=${S.api}&seasontype=2${spec.cat ? `&category=${encodeURIComponent(spec.cat)}` : ''}&sort=${encodeURIComponent(spec.sort)}`;
+  const [j, ids] = await Promise.all([safe(getJSON(url(1), cur ? 600 : 86400), null), phillyIds(league, S.start)]);
+  if (!j?.athletes) return null;
+  const val = (a, c, n) => { const cat = j.categories.find(x => x.name === c), i = cat?.names.indexOf(n), ac = a.categories.find(x => x.name === c); return i >= 0 && ac ? ac.totals[i] : ''; };
+  const isPhilly = a => (ids ? ids.has(String(a.athlete.id)) : false) || (cur && league === 'nfl' && String(a.athlete.teamId) === String(T.espnId));
+  const rows = j.athletes.map((a, i) => ({ rank: i + 1, id: a.athlete.id, name: a.athlete.displayName, abbr: a.athlete.teamShortName, logo: teamLogo(T, a.athlete.teamShortName || 'phi'), value: val(a, spec.c, spec.main), extra: spec.extra.map(e => val(a, e[0], e[1])), philly: isPhilly(a), head: a.athlete.headshot?.href }))
+    .filter(r => r.value !== '' && r.value !== '-' && r.value !== '0' && r.value !== '0.0');
+  return { league, key, label: spec.label, season: S.label, start: year, main: spec.mainLabel, cols: spec.extra.map(e => e[2]), rows };
+};
+API.teamLeaderboard = async (league, key, year = null) => {
+  const spec = LB[league]?.[key]; if (!spec) return null;
+  if (league === 'mlb') {
+    const S = await lbSeason(league, year), t = TEAMS.phillies;
+    const j = await safe(getJSON(`${MLB_API}/teams/${t.mlbId}/leaders?leaderCategories=${key}&season=${S.api}&limit=25&statGroup=${spec.group}`, 600), null);
+    const g = (j?.teamLeaders || []).find(x => x.statGroup === spec.group) || j?.teamLeaders?.[0];
+    return { label: spec.label, season: S.label, cols: [], main: '', rows: (g?.leaders || []).map((l, i) => ({ rank: i + 1, lgRank: null, name: l.person.fullName, mlbId: l.person.id, abbr: 'PHI', logo: teamLogo(t), value: l.value, extra: [], philly: true, head: `https://img.mlbstatic.com/mlb-photos/image/upload/w_80,q_auto:best/v1/people/${l.person.id}/headshot/67/current` })) };
+  }
+  // Pull the whole league for this stat and keep the Philly players, so each keeps their league rank.
+  const all = await API.leaderboard(league, key, year, league === 'nfl' ? 1000 : 500, { qualified: false });
+  if (!all) return null;
+  return { ...all, rows: all.rows.filter(r => r.philly).map((r, i) => ({ ...r, lgRank: r.rank, rank: i + 1 })) };
+};
+API.leagueLeaders = async (leagueKey, year = null) => {
+  const groups = await Promise.all(LB_GROUPS[leagueKey].map(async ([title, keys]) => ({ title, lists: (await Promise.all(keys.map(k => API.leaderboard(leagueKey, k, year, 10)))).filter(l => l && l.rows.length) })));
+  const S = await lbSeason(leagueKey, year);
+  groups.forEach(g => (g.title = `${g.title} · ${S.label}`));
+  return groups;
+};
 /* ---------------- League news + scores ---------------- */
 API.leagueNews = async leagueKey => {
   const T = TEAMS[LEAGUES[leagueKey].team];
