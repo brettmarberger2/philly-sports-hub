@@ -17,7 +17,7 @@ function gameBox(t, g, label) {
   const mid = (live || done) ? `<div class="score">${away.score ?? 0} – ${home.score ?? 0}</div>` : `<div class="muted small center">${g.home ? 'vs' : '@'}</div>`;
   const badge = live ? `<span class="badge live">Live · ${esc(g.detail)}</span>` : done ? `<span class="badge ${g.result === 'W' ? 'good' : g.result === 'L' ? 'bad' : ''}">Final · ${g.result}</span>` : `<span class="badge">${esc(fmtDay(g.date))} · ${esc(fmtTime(g.date))}</span>`;
   const meta = [g.label, g.tv, g.venue].filter(Boolean).join(' · ');
-  return `<a class="gamebox" style="display:block;color:inherit" href="${esc(g.link)}" target="_blank" rel="noopener">
+  return `<a class="gamebox" style="display:block;color:inherit" href="javascript:void(0)" data-game="${gameRef(t, g)}">
     <div class="lab"><span>${label}${g.label ? ' · ' + esc(g.label) : ''}</span>${badge}</div>
     <div class="matchup">${side(away)}${mid}${side(home, true)}</div>
     ${meta ? `<div class="dim small" style="margin-top:6px">${esc(meta)}</div>` : ''}
@@ -46,19 +46,23 @@ async function viewHome({ mount, alive }) {
         <div class="row" style="margin-top:18px">
           <a class="btn primary" style="--team:#0b1a30" href="#/leagues">Standings &amp; playoff races</a>
           <a class="btn" href="#/league/mlb/leaders">League leaders</a>
+          <a class="btn" href="#/history">📜 History</a>
+          <a class="btn" href="#/year">🗓️ Year Explorer</a>
         </div>
         <form class="yearjump" id="yjForm" style="margin-top:14px" autocomplete="off"><input type="number" id="yjIn" inputmode="numeric" min="${yr.min}" max="${new Date().getFullYear()}" placeholder="Jump to any year" aria-label="Jump to a year"><button type="submit">Jump →</button></form>
       </div>
       <div class="hero-tiles" id="heroTiles">${TEAM_KEYS.map(k => `<a class="hero-tile" href="#/team/${k}" style="--c1:${TEAMS[k].primary}"><img src="${teamLogoOn(TEAMS[k])}" alt=""><div><div class="nm">${TEAMS[k].nick}</div><div class="sub" id="hs-${k}">${TEAMS[k].sportName}</div></div><div class="rc">—<small>Record</small></div></a>`).join('')}</div>
     </div></section>
+    <nav class="jumpbar">${[['gd', 'Game day'], ['up', 'Coming up'], ['st', 'Standings'], ['ld', 'Leaders'], ['nw', 'Headlines'], ['hist', '📜 History &amp; Time machine']].map(([id, l]) => `<a href="javascript:void(0)" data-jump="${id}">${l}</a>`).join('')}</nav>
     <div id="liveStrip"></div>
-    <section class="section"><h2>Game day</h2><div class="grid g3" id="teamCards">${TEAM_KEYS.map(k => `<div class="card">${spinner()}</div>`).join('')}</div></section>
-    <section class="section"><h2>Coming up</h2><div class="card" id="upcoming">${spinner('Loading schedules…')}</div></section>
-    <section class="section"><h2>Standings</h2><p class="section-sub">Where each team sits right now. Tap a card for the full playoff picture and every division.</p><div class="grid g3" id="stdSnap">${TEAM_KEYS.map(() => `<div class="card">${spinner()}</div>`).join('')}</div></section>
-    <section class="section"><h2>League leaders</h2><p class="section-sub">The top of each league, with Philly players highlighted. Tap any list for the full leaderboard.</p><div id="ldSnap">${spinner('Loading leaders…')}</div></section>
-    <section class="section"><h2>Headlines</h2><div id="homeNews">${spinner('Loading headlines…')}</div></section>
+    <section class="section" id="gd"><h2>Game day</h2><div class="grid g3" id="teamCards">${TEAM_KEYS.map(k => `<div class="card">${spinner()}</div>`).join('')}</div></section>
+    <section class="section" id="up"><h2>Coming up</h2><div class="card" id="upcoming">${spinner('Loading schedules…')}</div></section>
+    <section class="section" id="st"><h2>Standings</h2><p class="section-sub">Where each team sits right now. Tap a card for the full playoff picture and every division.</p><div class="grid g3" id="stdSnap">${TEAM_KEYS.map(() => `<div class="card">${spinner()}</div>`).join('')}</div></section>
+    <section class="section" id="ld"><h2>League leaders</h2><p class="section-sub">The top of each league, with Philly players highlighted. Tap any list for the full leaderboard.</p><div id="ldSnap">${spinner('Loading leaders…')}</div></section>
+    <section class="section" id="nw"><h2>Headlines</h2><div id="homeNews">${spinner('Loading headlines…')}</div></section>
 
-    <div class="histdiv"><span>Explore the history</span></div>
+    <div class="histdiv" id="hist"><span>Explore the history</span></div>
+    <div class="grid g4" style="margin-bottom:22px">${[['#/history', '📜', 'Franchise history', 'Every season, timelines, titles'], ['#/year', '🗓️', 'Year Explorer', 'Any year since 1883'], ['#/team/eagles/legends', '⭐', 'Legends', 'Icons and retired numbers'], ['#/stadiums', '🏟️', 'Stadiums', 'Today and the past']].map(([h, i, a, b]) => `<a class="card histcard" href="${h}"><span>${i}</span><div><b>${a}</b><div class="muted small">${b}</div></div></a>`).join('')}</div>
     <section class="tm" id="tm">
       <div class="tm-top"><div><h2>Time machine</h2><p class="sub">Pick any year from ${yr.min} to today. See how the Eagles, Phillies and 76ers did, who won the title, then open the year for the players, stats and stories.</p></div><div class="tm-year" id="tmYear">1980</div></div>
       <input type="range" id="tmRange" min="${yr.min}" max="${new Date().getFullYear()}" value="1980" aria-label="Pick a year">
@@ -153,7 +157,7 @@ function homeUpcoming(stats) {
   const soon = Date.now() + 10 * 864e5;
   const games = stats.flatMap(({ t, gs }) => (gs?.games || []).filter(g => g.state === 'pre' && g.stype !== 1 && g.ts > Date.now() - 3 * 3600e3 && g.ts < soon).map(g => ({ ...g, t }))).sort((a, b) => a.ts - b.ts).slice(0, 10);
   const el = $('#upcoming'); if (!el) return;
-  el.innerHTML = games.length ? `<div class="upl">${games.map(g => `<a class="uprow" href="${esc(g.link)}" target="_blank" rel="noopener"><span class="ud"><b>${esc(fmtDate(g.date, { weekday: 'short' }))}</b>${esc(fmtDate(g.date, { month: 'short', day: 'numeric' }))}</span><img src="${teamLogo(g.t)}" alt=""><span class="uv">${g.home ? 'vs' : '@'}</span><img src="${esc(g.opp.logo)}" alt="" onerror="this.style.visibility='hidden'"><span class="un"><b>${esc(g.t.nick)}</b> ${g.home ? 'vs' : 'at'} ${esc(g.opp.name)}<span class="small muted">${esc([g.label, g.venue].filter(Boolean).join(' · '))}</span></span><span class="ut">${esc(fmtTime(g.date))}${g.tv ? `<span class="small muted">${esc(g.tv)}</span>` : ''}</span></a>`).join('')}</div>`
+  el.innerHTML = games.length ? `<div class="upl">${games.map(g => `<a class="uprow" href="javascript:void(0)" data-game="${gameRef(g.t, g)}"><span class="ud"><b>${esc(fmtDate(g.date, { weekday: 'short' }))}</b>${esc(fmtDate(g.date, { month: 'short', day: 'numeric' }))}</span><img src="${teamLogo(g.t)}" alt=""><span class="uv">${g.home ? 'vs' : '@'}</span><img src="${esc(g.opp.logo)}" alt="" onerror="this.style.visibility='hidden'"><span class="un"><b>${esc(g.t.nick)}</b> ${g.home ? 'vs' : 'at'} ${esc(g.opp.name)}<span class="small muted">${esc([g.label, g.venue].filter(Boolean).join(' · '))}</span></span><span class="ut">${esc(fmtTime(g.date))}${g.tv ? `<span class="small muted">${esc(g.tv)}</span>` : ''}</span></a>`).join('')}</div>`
     : '<div class="muted small">No Philly games in the next 10 days.</div>';
 }
 function homeStandings(stats) {

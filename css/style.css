@@ -593,3 +593,22 @@ table.data th.sorted { color: var(--text); } table.data td.sorted { font-weight:
 :root[data-theme="dark"] .ldcard .lr.ph { background: #2a2410; }
 @media (max-width: 960px) { .ldcards { grid-template-columns: repeat(2, minmax(0, 1fr)); } .hero.compact { padding: 24px 20px; } }
 @media (max-width: 620px) { .uprow { grid-template-columns: 50px 26px 18px 26px minmax(0, 1fr); } .uprow .ut { grid-column: 5; text-align: left; } .uprow .ut .small { display: inline; margin-left: 6px; } .histdiv span { font-size: 1.15rem; } }
+
+/* ===== v11: box scores, standings boards, jump bar ===== */
+.jumpbar { display: flex; gap: 6px; flex-wrap: wrap; margin: 16px 0 0; } .jumpbar a { padding: 7px 14px; border-radius: 99px; background: var(--card2); border: 1px solid var(--line); color: var(--text); font-weight: 700; font-size: .84rem; } .jumpbar a:hover { text-decoration: none; border-color: var(--team); }
+.jumpbar a:last-child { background: var(--ink); color: #fff; border-color: transparent; }
+.histcard { display: flex; gap: 12px; align-items: center; padding: 16px; } .histcard > span { font-size: 1.8rem; } .histcard b { display: block; }
+.leaguelink { color: #fff !important; background: rgba(255,255,255,.16); padding: 3px 10px; border-radius: 99px; font-weight: 800; }
+.grouph { margin: 18px 0 8px; font-size: 1.3rem; } .grouph:first-child { margin-top: 0; }
+table.board tr.secrow td { background: var(--bg2); font-size: .68rem; font-weight: 800; text-transform: uppercase; letter-spacing: .09em; color: var(--muted); padding: 7px 14px; border-top: 1px solid var(--line); }
+table.board tr.secrow.cutafter + tr td, table.board tr.secrow.cutafter ~ tr td { }
+table.board tbody tr:first-child td { border-top: 0; }
+tr.click, .click { cursor: pointer; } a.pname { text-decoration: none; } a.pname:hover b { text-decoration: underline; }
+.bx-head { flex-direction: column; align-items: stretch; gap: 12px; } .bx-top { display: flex; justify-content: space-between; gap: 10px; flex-wrap: wrap; align-items: center; padding-right: 44px; }
+.bx-teams { display: flex; align-items: center; justify-content: center; gap: 18px; flex-wrap: wrap; } .bx-at { font-family: var(--display); font-size: 1.6rem; opacity: .7; }
+.bxt { display: flex; align-items: center; gap: 12px; } .bxt img { width: 60px; height: 60px; object-fit: contain; background: rgba(255,255,255,.9); border-radius: 14px; padding: 6px; } .bxt b { display: block; font-family: var(--display); font-size: 1.6rem; line-height: 1; } .bxt span { font-size: .78rem; opacity: .85; }
+.bxs { font-family: var(--display); font-size: 3rem; font-weight: 800; line-height: 1; opacity: .75; } .bxt.w .bxs { opacity: 1; }
+table.linescore th, table.linescore td { padding: 8px 10px; } table.linescore .tot { background: var(--bg2); }
+.lastline { display: flex; gap: 10px; align-items: baseline; flex-wrap: wrap; font-size: 1.1rem; color: var(--text); margin-bottom: 10px; } .lastline:hover { text-decoration: none; } .lastline span { font-weight: 700; }
+@media (max-width: 620px) { .bxt img { width: 44px; height: 44px; } .bxs { font-size: 2.2rem; } .bx-teams { gap: 10px; } .bxt b { font-size: 1.3rem; } .jumpbar a { padding: 6px 11px; font-size: .78rem; } }
+@media (max-width: 960px) { .bnav { grid-template-columns: repeat(6, 1fr); } .bnav a span { font-size: .6rem; } }

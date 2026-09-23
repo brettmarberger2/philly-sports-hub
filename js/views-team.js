@@ -1,6 +1,6 @@
 /* Team page shell + live-data tabs: overview, roster, depth chart, contracts, stats, schedule */
 const TAB_LIST = [
-  ['overview', 'Overview'], ['picture', 'Standings & Playoffs'], ['schedule', 'Schedule & Results'], ['stats', 'Stats'], ['roster', 'Roster'], ['depth', 'Depth Chart'], ['contracts', 'Contracts'],
+  ['overview', 'Overview'], ['picture', 'Standings & Playoffs'], ['schedule', 'Schedule & Results'], ['stats', 'Stats'], ['leaders', 'League Leaders'], ['scores', 'League Scores & News'], ['roster', 'Roster'], ['depth', 'Depth Chart'], ['contracts', 'Contracts'],
   ['coaches', 'Coaches'], ['history', 'History'], ['legends', 'Legends'], ['stadium', 'Stadium'], ['shop', 'Shop'],
 ];
 const yearLabel = (t, y) => (t.league === 'nba' ? `${y - 1}–${String(y).slice(2)}` : String(y));
@@ -19,7 +19,7 @@ async function viewTeam({ parts, q, mount, alive }) {
     <div class="team-head" id="teamHead" data-team="${key}">
       <img class="logo" src="${teamLogoOn(t)}" alt="${esc(t.name)}">
       <div class="meta"><div class="small muted" style="letter-spacing:.12em;text-transform:uppercase">${t.sportName} · Est. ${t.since}</div><h1>${esc(t.name)}</h1>
-        <div class="row small muted"><span>🏆 ${tot.titles} titles</span><span>🏅 ${tot.finals + tot.titles} finals</span><span>📈 ${tot.w}-${tot.l}${tot.t ? '-' + tot.t : ''} all-time</span></div></div>
+        <div class="row small muted"><a class="leaguelink" href="#/league/${t.league}">${LEAGUES[t.league].short} standings &amp; leaders ›</a><span>🏆 ${tot.titles} titles</span><span>🏅 ${tot.finals + tot.titles} finals</span><span>📈 ${tot.w}-${tot.l}${tot.t ? '-' + tot.t : ''} all-time</span></div></div>
       <div class="stats" id="headStats"></div>
     </div>
     <div class="tabs" id="tabs">${TAB_LIST.map(([k, l]) => `${k === 'coaches' ? '<span class="tabsep">Club &amp; history</span>' : ''}<a href="#/team/${key}/${k}" class="${k === tab ? 'active' : ''}">${l}</a>`).join('')}</div>
@@ -30,7 +30,7 @@ async function viewTeam({ parts, q, mount, alive }) {
     $('#headStats').innerHTML = `<div class="big-stat"><div class="v">${has ? esc(info.summary) : '—'}</div><div class="l">Record</div></div>
       <div class="big-stat"><div class="v" style="font-size:1.4rem;padding-top:6px">${esc(info.standingSummary || '—')}</div><div class="l">Standing</div></div>`;
   });
-  const fn = { overview: tabOverview, picture: tabPicture, roster: tabRoster, depth: tabDepth, contracts: tabContracts, stats: tabStats, schedule: tabSchedule, coaches: tabCoaches, history: tabHistory, legends: tabLegends, stadium: tabStadium, shop: tabShop }[tab];
+  const fn = { overview: tabOverview, picture: tabPicture, leaders: (tt, o) => API.leagueTable(tt.league).then(tb => leagueLeadersTab(tt.league, tb, o.mount, o.alive)), scores: (tt, o) => leagueNewsTab(tt.league, o.mount, o.alive), roster: tabRoster, depth: tabDepth, contracts: tabContracts, stats: tabStats, schedule: tabSchedule, coaches: tabCoaches, history: tabHistory, legends: tabLegends, stadium: tabStadium, shop: tabShop }[tab];
   await fn(t, { mount: $('#tabBody'), q, alive, key });
   if (alive()) $('#tabBody').style.minHeight = '';
   if (alive()) $('#tabBody').style.minHeight = '';
@@ -57,6 +57,7 @@ function standingsTable(std, t) {
 async function tabOverview(t, { mount, alive }) {
   mount.innerHTML = `<div class="split"><div class="stack">
       <div class="card" id="ovGames">${spinner()}</div>
+      <div class="card" id="ovLast">${spinner('Loading last game…')}</div>
       <div class="card"><h3>Standings</h3><div id="ovStd">${spinner()}</div></div>
       <div class="card"><h3>Team leaders</h3><div id="ovLead">${spinner()}</div></div>
       <div class="card"><h3>Latest news</h3><div id="ovNews">${spinner()}</div></div>
@@ -76,11 +77,12 @@ async function tabOverview(t, { mount, alive }) {
     const upcoming = gs.games.filter(g => g.state === 'pre' && g.stype !== 1).slice(0, 5);
     $('#ovGames').innerHTML = `<h3>Game center</h3><div class="grid g2">${gs.live ? gameBox(t, gs.live, 'LIVE') : gameBox(t, gs.next, 'NEXT')}${gameBox(t, gs.last, 'LAST')}</div>
       ${played.length ? `<div class="row" style="margin-top:14px"><span class="small muted">Recent form</span>${resultDots(played.slice(-8))}</div>` : ''}
-      ${upcoming.length ? `<h4 style="margin-top:16px">Coming up</h4><div class="stack" style="gap:6px">${upcoming.map(g => `<div class="row between small"><span class="row" style="gap:8px"><img src="${esc(g.opp.logo)}" width="22" height="22" alt="" onerror="this.style.visibility='hidden'"> ${g.home ? 'vs' : '@'} ${esc(g.opp.name)}</span><span class="muted">${esc(fmtDay(g.date))} · ${esc(fmtTime(g.date))}${g.tv ? ' · ' + esc(g.tv) : ''}</span></div>`).join('')}</div>` : ''}
+      ${upcoming.length ? `<h4 style="margin-top:16px">Coming up</h4><div class="stack" style="gap:6px">${upcoming.map(g => `<div class="row between small click" data-game="${gameRef(t, g)}" style="cursor:pointer"><span class="row" style="gap:8px"><img src="${esc(g.opp.logo)}" width="22" height="22" alt="" onerror="this.style.visibility='hidden'"> ${g.home ? 'vs' : '@'} ${esc(g.opp.name)}</span><span class="muted">${esc(fmtDay(g.date))} · ${esc(fmtTime(g.date))}${g.tv ? ' · ' + esc(g.tv) : ''}</span></div>`).join('')}</div>` : ''}
       <a class="btn small" style="margin-top:14px" href="#/team/${t.key}/schedule">Full schedule &amp; results →</a>`;
   };
   drawGames();
   App.every(() => alive() && drawGames(), 45000);
+  gsP.then(gs => lastGameCard(t, gs, alive));
 
   stdP.then(s => { if (alive()) $('#ovStd').innerHTML = standingsTable(s, t); });
   leadP.then(l => {
@@ -297,7 +299,7 @@ async function tabSchedule(t, { mount, alive, q }) {
       { key: 'ts', label: 'Date', sortVal: g => g.ts, fmt: g => `<span>${esc(fmtDate(g.date, { month: 'short', day: 'numeric', year: 'numeric' }))}</span>` },
       { key: 'label', label: 'Round', cls: 'muted', fmt: g => esc(g.label) },
       { key: 'opp', label: 'Opponent', sortVal: g => g.opp.name, fmt: g => `<div class="pname"><span class="dim" style="min-width:22px">${g.home ? 'vs' : '@'}</span><img src="${esc(g.opp.logo)}" style="border-radius:0;background:none;width:24px;height:24px;object-fit:contain" alt="" loading="lazy" onerror="this.style.visibility='hidden'">${esc(g.opp.name)}</div>` },
-      { key: 'result', label: 'Result', fmt: g => (g.state === 'post' ? `<a href="${esc(g.link)}" target="_blank" rel="noopener">${resultChip(g)}</a>` : g.state === 'in' ? `<span class="badge live">${esc(g.detail)}</span> ${g.ourScore ?? 0}–${g.oppScore ?? 0}` : `<span class="muted">${esc(fmtTime(g.date))}</span>`) },
+      { key: 'result', label: 'Result', fmt: g => (g.state === 'post' ? `${resultChip(g)} <span class="dim small">Box score ›</span>` : g.state === 'in' ? `<span class="badge live">${esc(g.detail)}</span> ${g.ourScore ?? 0}–${g.oppScore ?? 0}` : `<span class="muted">${esc(fmtTime(g.date))}</span>`) },
       { key: 'rec', label: 'Record', num: true, sortVal: g => g.ts, fmt: g => esc(recMap.get(g.id) || '') },
       { key: 'tv', label: 'TV', cls: 'muted', fmt: g => esc(g.tv || '') },
       { key: 'venue', label: 'Venue', cls: 'muted', fmt: g => esc(g.venue || '') },
@@ -305,7 +307,7 @@ async function tabSchedule(t, { mount, alive, q }) {
     $('#schedBody').innerHTML = `${games.length ? `<div class="grid g3" style="margin-bottom:14px"><div class="stat-tile"><div class="v">${rw}-${rl}${t.recordFmt === 'wlt' && regGames.some(g => g.result === 'T') ? '-' + regGames.filter(g => g.result === 'T').length : ''}</div><div class="l">Regular season · ${esc(seasonLabel(t, season ?? curYear))}</div></div><div class="stat-tile"><div class="v">${sum(done, g => g.ourScore)}–${sum(done, g => g.oppScore)}</div><div class="l">Scored – allowed</div></div><div class="stat-tile"><div class="v">${games.filter(g => g.stype === 3).length ? games.filter(g => g.stype === 3 && g.result === 'W').length + '-' + games.filter(g => g.stype === 3 && g.result === 'L').length : '—'}</div><div class="l">Postseason</div></div></div>
       ${margins.length ? `<div class="card" style="margin-bottom:14px"><h3>Margin by game</h3>${Charts.bars(margins, { w: 900, h: 170, fmt: v => v, pad: { l: 40, r: 6, t: 10, b: 8 } })}<div class="legend"><span><i style="background:var(--good)"></i>Win</span><span><i style="background:var(--bad)"></i>Loss</span><span>Bar height = final margin (${t.mlbId ? 'runs' : 'points'})</span></div></div>` : ''}
       ${partial ? `<div class="errbox" style="margin-bottom:12px">ESPN's archive has only ${games.filter(g => g.stype === 2).length} of ${t.gamesInSeason} regular-season games for this season. Season totals are on the <a href="#/season/${t.key}/${season}">season page</a>.</div>` : ''}
-      ${renderTable('sched', cols, f, { sortKey: 'ts', rowClass: g => (g.state === 'in' ? 'hl' : g.result === 'W' ? '' : '') })}` : errBox('No games found for this season.')}`;
+      ${renderTable('sched', cols, f, { sortKey: 'ts', rowClass: g => (g.state === 'in' ? 'hl click' : 'click'), rowAttr: g => `data-game="${gameRef(t, g)}"` })}` : errBox('No games found for this season.')}`;
   };
   const load = async v => {
     $('#schedBody').innerHTML = spinner();

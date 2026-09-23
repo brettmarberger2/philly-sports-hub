@@ -192,7 +192,7 @@ async function viewSeason({ parts, mount, alive }) {
         { key: 'ts', label: 'Date', fmt: x => esc(fmtDate(x.date)), sortVal: x => x.ts }, { key: 'label', label: 'Round', cls: 'muted' },
         { key: 'opp', label: 'Opponent', sortVal: x => x.opp.name, fmt: x => `<div class="pname"><span class="dim">${x.home ? 'vs' : '@'}</span>${esc(x.opp.name)}</div>` },
         { key: 'result', label: 'Result', fmt: x => resultChip(x) }, { key: 'rec', label: 'Record', num: true, sortVal: x => x.ts },
-      ], rows, { sortKey: 'ts' });
+      ], rows, { sortKey: 'ts', rowClass: () => 'click', rowAttr: x => `data-game="${gameRef(t, x)}"` });
   }).catch(() => { if (alive()) { $('#sGames').innerHTML = errBox('Game log unavailable.'); $('#sHL').innerHTML = ''; } });
 
   safe(API.standings(t, year)).then(std => { if (alive()) $('#sStd').innerHTML = std?.ours ? standingsTable(std, t) : '<div class="muted small">Standings for that season are not available.</div>'; });

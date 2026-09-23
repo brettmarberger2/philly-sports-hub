@@ -1,4 +1,4 @@
-﻿/* Views: playoff picture tab, league pages, MLB pro stats */
+/* Views: playoff picture tab, league pages, MLB pro stats */
 
 /* ---------- shared bits ---------- */
 const normName = s => String(s || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/\./g, '').toLowerCase().trim();
@@ -33,23 +33,10 @@ function picBannerHtml(pic, compact = false) {
 async function tabPicture(t, { mount, alive }) {
   const pic = await API.picture(t); if (!alive()) return;
   mount.innerHTML = `${picBannerHtml(pic)}
-    <div class="split" style="margin-top:18px"><div class="stack">
-      <div class="card"><h3>What needs to happen</h3><ul class="needs">${pic.bullets.map(b => `<li>${b}</li>`).join('')}</ul><p class="disc">Computed live from the standings. Magic numbers assume the nearest competitor; final seeding also depends on tiebreakers. ${pic.kind === 'nfl' ? 'NFL seeds shown are ESPN\'s current order.' : ''}</p></div>
-      <div class="card" id="remCard"><h3>Remaining schedule</h3>${spinner('Loading schedule…')}</div>
-    </div><div class="stack">
-      <div class="card flat"><h4 style="margin:0 0 6px">How to read this</h4><p class="small muted" style="margin:0">${pic.kind === 'mlb' ? 'Six teams per league make the playoffs: three division winners (seeds 1–3) and three Wild Cards (4–6). Seeds 1 and 2 skip the best-of-3 Wild Card round.' : pic.kind === 'nfl' ? 'Seven teams per conference: four division winners (1–4) and three wild cards (5–7). Only the #1 seed gets a first-round bye.' : 'Seeds 1–6 in each conference qualify directly. Seeds 7–10 play the Play-In Tournament for the final two spots.'}</p></div>
-    </div></div>
-    <div class="section"><h2>The race</h2><div class="filters" style="padding:10px 14px"><div class="seg" id="scopeSeg">${pic.scopes.map((s, i) => `<button data-i="${i}" class="${i === 0 ? 'on' : ''}">${esc(s.label)}</button>`).join('')}</div><span class="muted small" id="scopeNote"></span></div><div id="raceBox"></div></div>
-    <div class="section"><h2>Around the ${LEAGUES[t.league].short}</h2><p class="section-sub">Every ${t.league === 'nba' ? 'conference' : 'division'} and the playoff picture in ${t.league === 'mlb' ? 'both leagues' : 'both conferences'}.</p>
-      <div class="filters" style="padding:10px 14px"><div class="seg" id="aroundSeg"><button data-m="pic" class="on">Playoff picture: ${t.league === 'mlb' ? 'AL &amp; NL' : t.league === 'nfl' ? 'AFC &amp; NFC' : 'East &amp; West'}</button><button data-m="std">${t.league === 'nba' ? 'Full standings' : 'All divisions'}</button></div><a class="btn small ghost" href="#/league/${t.league}">Open ${LEAGUES[t.league].short} page ›</a></div><div id="aroundBox"></div></div>`;
-  const around = m => { const box = $('#aroundBox'); if (m === 'pic') leaguePicture(t.league, pic.table, pic, box); else leagueStandings(t.league, pic.table, pic, box); };
-  $('#aroundSeg').addEventListener('click', e => { const b = e.target.closest('[data-m]'); if (!b) return; $$('#aroundSeg button').forEach(x => x.classList.toggle('on', x === b)); around(b.dataset.m); });
-  around('pic');
-  const draw = i => { const s = pic.scopes[i]; $('#raceBox').innerHTML = raceTableHtml(pic, s, `race-${t.key}-${s.key}`); $('#scopeNote').textContent = s.cutAfter ? `Red line = playoff cut${s.cutAfter2 ? 's' : ''}. Your team is highlighted.` : 'Your team is highlighted.'; };
-  $('#scopeSeg').addEventListener('click', e => { const b = e.target.closest('[data-i]'); if (!b) return; $$('#scopeSeg button').forEach(x => x.classList.toggle('on', x === b)); draw(+b.dataset.i); });
-  const start = pic.kind === 'nba' ? 0 : 1;
-  $$('#scopeSeg button').forEach((b, i) => b.classList.toggle('on', i === start));
-  draw(start);
+    <div class="section" style="margin-top:22px"><h2>${LEAGUES[t.league].short} standings</h2><div id="shHub"></div></div>
+    <div class="split section"><div class="card"><h3>What needs to happen</h3><ul class="needs">${pic.bullets.map(b => `<li>${b}</li>`).join('')}</ul><p class="disc">Computed live from the standings. Magic numbers assume the nearest competitor; final seeding also depends on tiebreakers.</p></div>
+      <div class="card" id="remCard"><h3>Remaining schedule</h3>${spinner('Loading schedule…')}</div></div>`;
+  standingsHub(t.league, pic.table, pic, $('#shHub'), 'pic');
   API.remaining(t, pic.table).then(rem => { if (!alive()) return; $('#remCard').innerHTML = remainingHtml(t, pic, rem); });
 }
 function remainingHtml(t, pic, rem) {
@@ -63,7 +50,7 @@ function remainingHtml(t, pic, rem) {
   ];
   return `<h3>${opener ? 'Season opening stretch' : 'Remaining schedule'}</h3>
     <p class="small muted" style="margin-top:-6px">${opener ? '' : `<b>${rem.games.length}</b> game${rem.games.length === 1 ? '' : 's'} left (${rem.home} home, ${rem.away} away). `}${rem.avgOpp != null ? `Opponents' combined win %: <b>${fmtPct(rem.avgOpp)}</b>${rem.avgOpp >= 0.52 ? ' (tougher than average)' : rem.avgOpp <= 0.48 ? ' (softer than average)' : ' (about average)'}. ` : ''}${rem.vsWinning} against teams at .500 or better.${opener ? ' Opponent records are last season\'s.' : ''}</p>
-    ${renderTable(`rem-${t.key}`, cols, shown, { sortKey: 'ts' })}${rem.games.length > shown.length ? `<p class="small dim">Showing the next ${shown.length} of ${rem.games.length}.</p>` : ''}`;
+    ${renderTable(`rem-${t.key}`, cols, shown, { sortKey: 'ts', rowClass: () => 'click', rowAttr: g => `data-game="${gameRef(t, g)}"` })}${rem.games.length > shown.length ? `<p class="small dim">Showing the next ${shown.length} of ${rem.games.length}.</p>` : ''}`;
 }
 
 /* compact card used on the team overview + home */
@@ -149,42 +136,68 @@ async function viewLeague({ parts, q, mount, alive }) {
   return leagueNewsTab(key, body, alive);
 }
 
+/* ---------- Standings hub: playoff picture / divisions / wild card / whole league, both leagues, yours first ---------- */
+const shortDiv = n => String(n || '').replace('American League', 'AL').replace('National League', 'NL');
+const lead = v => (v === 0 ? 'tied' : v > 0 ? `+${fmtGB(v)}` : `${fmtGB(-v)} back`);
+const aheadBy = (a, b) => ((a.w - b.w) + (b.l - a.l)) / 2;
+function teamCellHtml(r, lg) {
+  const mine = String(r.id) === PHILLY_ID[lg];
+  const inner = `<img src="${esc(r.logo)}" style="border-radius:0;background:none;border:0;width:24px;height:24px;object-fit:contain" alt="">${mine ? `<b>${esc(r.name)}</b>` : esc(r.name)}`;
+  return mine ? `<a class="pname" href="#/team/${LEAGUES[lg].team}" style="color:inherit">${inner}</a>` : `<div class="pname">${inner}</div>`;
+}
+/** A playoff table split into labeled sections (who's in by division, who's in as a wild card, who's chasing). */
+function boardHtml(table, sections, opts = {}) {
+  const lg = table.kind, hasT = lg === 'nfl', showDiv = lg !== 'nba';
+  const head = `<tr><th class="num">${opts.rankLabel || 'Seed'}</th><th class="stk">Team</th>${showDiv ? '<th>Division</th>' : ''}<th class="num">W-L</th><th class="num">PCT</th><th class="num">${opts.gbLabel || 'Games'}</th>${lg !== 'nfl' ? '<th class="num">L10</th>' : ''}<th class="num">STRK</th></tr>`;
+  const ncol = 7 - (showDiv ? 0 : 1) - (lg === 'nfl' ? 1 : 0);
+  const body = sections.filter(s => s[1].length).map(([title, rows, gbf, cut], si) => `<tr class="secrow ${cut ? 'cutafter' : ''}"><td colspan="${ncol}">${esc(title)}</td></tr>` + rows.map(r => `<tr class="${String(r.id) === PHILLY_ID[lg] ? 'us hl' : ''}"><td class="num"><b>${r.seed ?? r.wcPos ?? ''}</b></td><td class="stk">${teamCellHtml(r, lg)}</td>${showDiv ? `<td class="muted nw">${esc(lg === 'mlb' ? shortDiv(r.divName) : r.divName || '')}</td>` : ''}<td class="num nw"><b>${r.w}-${r.l}${hasT && r.t ? '-' + r.t : ''}</b></td><td class="num">${fmtPct(r.pct)}</td><td class="num nw">${esc(gbf(r))}</td>${lg !== 'nfl' ? `<td class="num">${esc(r.l10 || '')}</td>` : ''}<td class="num">${esc(r.streak || '')}</td></tr>`).join('')).join('');
+  return `<div class="table-wrap"><table class="data board"><thead>${head}</thead><tbody>${body}</tbody></table></div>`;
+}
+function pictureBoard(table, g) {
+  const lg = table.kind, divSecond = r => table.teams.filter(x => (lg === 'mlb' ? x.divId === r.divId : x.divName === r.divName)).sort((a, b) => a.divRank - b.divRank)[1];
+  const divLead = r => { const s = divSecond(r); return s ? `${lead(aheadBy(r, s))} in div` : ''; };
+  if (lg === 'mlb') { const p = g.pool, wc3 = p[2], out = p[3]; return boardHtml(table, [[`Division leaders · seeds 1–3`, g.leaders, divLead], [`Wild Cards · seeds 4–6`, p.slice(0, 3), r => (out ? `${lead(aheadBy(r, out))} on 1st out` : ''), true], ['In the hunt', p.slice(3), r => (wc3 ? `${fmtGB(aheadBy(wc3, r))} GB of WC3` : '')]]); }
+  if (lg === 'nfl') { const o = g.ordered, s7 = o[6], s8 = o[7]; return boardHtml(table, [[`Division leaders · seeds 1–4`, o.slice(0, 4), divLead], [`Wild cards · seeds 5–7`, o.slice(4, 7), r => (s8 ? `${lead(aheadBy(r, s8))} on #8` : ''), true], ['In the hunt', o.slice(7), r => (s7 ? `${fmtGB(aheadBy(s7, r))} GB of #7` : '')]]); }
+  const o = g.ordered, s6 = o[5], s10 = o[9];
+  return boardHtml(table, [['Playoff spots · seeds 1–6', o.slice(0, 6), r => (r.seed === 1 ? '—' : `${fmtGB(aheadBy(o[0], r))} GB`)], ['Play-In · seeds 7–10', o.slice(6, 10), r => (s6 ? `${fmtGB(aheadBy(s6, r))} back of 6th` : ''), true], ['Outside the play-in', o.slice(10), r => (s10 ? `${fmtGB(aheadBy(s10, r))} GB of 10th` : '')]]);
+}
 function miniDiv(table, pic, div, title, id) {
-  const us = pic?.us, top = div[0];
+  const lg = table.kind, top = div[0];
   const cols = [
-    { key: 'name', label: title, fmt: r => `<div class="pname"><img src="${esc(r.logo)}" style="border-radius:0;background:none;border:0;width:22px;height:22px;object-fit:contain" alt="">${us && r.id === us.id ? `<b>${esc(r.name)}</b>` : esc(r.name)}</div>` },
-    { key: 'w', label: 'W', num: true }, { key: 'l', label: 'L', num: true }, ...(table.kind === 'nfl' ? [{ key: 't', label: 'T', num: true }] : []),
+    { key: 'name', label: title, fmt: r => teamCellHtml(r, lg) },
+    { key: 'w', label: 'W', num: true }, { key: 'l', label: 'L', num: true }, ...(lg === 'nfl' ? [{ key: 't', label: 'T', num: true }] : []),
     { key: 'pct', label: 'PCT', num: true, fmt: r => fmtPct(r.pct) }, { key: 'gbx', label: 'GB', num: true, fmt: r => fmtGB(gbFrom(top, r)) },
-    ...(table.kind === 'nfl' ? [] : [{ key: 'l10', label: 'L10', num: true }]), { key: 'streak', label: 'STRK', num: true },
+    ...(lg === 'nfl' ? [] : [{ key: 'l10', label: 'L10', num: true }]), { key: 'streak', label: 'STRK', num: true }, { key: 'status', label: '', fmt: r => statusBadge(r, lg) },
   ];
-  return renderTable(id, cols, div, { rowClass: r => (us && r.id === us.id ? 'us hl' : '') });
+  return renderTable(id, cols, div, { rowClass: r => (String(r.id) === PHILLY_ID[lg] ? 'us hl' : '') });
 }
-function leagueStandings(key, table, pic, body) {
-  const groups = Object.values(table.leagues);
-  const draw = mode => {
-    if (mode === 'all') {
-      const rows = [...table.teams].sort((a, b) => b.pct - a.pct || (b.diff || 0) - (a.diff || 0)), top = rows[0], us = pic?.us;
-      const cols = [{ key: '_i', label: '#', num: true }, { key: 'name', label: 'Team', fmt: r => `<div class="pname"><img src="${esc(r.logo)}" style="border-radius:0;background:none;border:0;width:24px;height:24px;object-fit:contain" alt="">${us && r.id === us.id ? `<b>${esc(r.name)}</b>` : esc(r.name)}</div>` }, { key: 'w', label: 'W-L', num: true, cls: 'nw', sortVal: r => r.pct, fmt: r => `<b>${r.w}-${r.l}${r.t ? '-' + r.t : ''}</b>` }, { key: 'pct', label: 'PCT', num: true, fmt: r => fmtPct(r.pct) }, { key: 'gbx', label: 'GB', num: true, fmt: r => fmtGB(gbFrom(top, r)) }, { key: 'conf', label: table.kind === 'mlb' ? 'League' : 'Conf', fmt: r => esc(r.lg || r.conf) }, { key: 'status', label: '', fmt: r => statusBadge(r, table.kind) }];
-      $('#stBox').innerHTML = renderTable(`lgall-${key}`, cols, rows.map((r, i) => ({ ...r, _i: i + 1 })), { rowClass: r => (us && r.id === us.id ? 'us hl' : '') });
-      return;
+function standingsHub(key, table, pic, body, initial = 'pic') {
+  const lg = table.kind, us = pic?.us;
+  const own = us ? (us.lg || us.conf) : null;
+  const groups = Object.values(table.leagues).sort((a, b) => (a.key === own ? -1 : b.key === own ? 1 : 0));
+  const modes = [['pic', 'Playoff picture'], ['div', lg === 'nba' ? 'Conferences' : 'Divisions'], ...(lg === 'mlb' ? [['wc', 'Wild Card race']] : []), ['all', `Whole ${LEAGUES[lg].short}`]];
+  const rules = lg === 'mlb' ? 'Six teams per league: three division winners (seeds 1–3) and three Wild Cards (4–6). Seeds 1–2 get a bye.' : lg === 'nfl' ? 'Seven teams per conference: four division winners (seeds 1–4) and three wild cards (5–7). Only the #1 seed gets a bye.' : 'Seeds 1–6 in each conference are in. Seeds 7–10 play the Play-In Tournament for the last two spots.';
+  const draw = m => {
+    $$('#shSeg button').forEach(b => b.classList.toggle('on', b.dataset.m === m));
+    const box = $('#shBox');
+    if (m === 'pic') box.innerHTML = `<p class="muted small" style="margin:0 0 12px">${rules}</p>${groups.map(g => `<h3 class="grouph">${esc(g.name)}</h3>${pictureBoard(table, g)}`).join('')}`;
+    else if (m === 'wc') box.innerHTML = groups.map(g => { const p = g.pool, wc3 = p[2]; return `<h3 class="grouph">${esc(g.name)} Wild Card</h3>${boardHtml(table, [['Holding a Wild Card', p.slice(0, 3), r => (p[3] ? `${lead(aheadBy(r, p[3]))} on 1st out` : ''), true], ['Chasing', p.slice(3), r => `${fmtGB(aheadBy(wc3, r))} GB`]], { rankLabel: 'WC' }).replace(/<td class="num"><b>(\d+)<\/b><\/td>/g, (x, n) => x)}`; }).join('');
+    else if (m === 'div') box.innerHTML = groups.map(g => `<h3 class="grouph">${esc(g.name)}</h3>${g.divisions.length ? `<div class="grid ${lg === 'mlb' ? 'g3' : 'g2'}">${[...g.divisions].sort((a, b) => (a.some(r => String(r.id) === PHILLY_ID[lg]) ? -1 : b.some(r => String(r.id) === PHILLY_ID[lg]) ? 1 : 0)).map((d, i) => `<div>${miniDiv(table, pic, d, shortDiv(d[0].divName), `sh-div-${key}-${g.key}-${i}`)}</div>`).join('')}</div>` : miniDiv(table, pic, g.ordered, 'Team', `sh-conf-${key}-${g.key}`)}`).join('');
+    else {
+      const rows = [...table.teams].sort((a, b) => b.pct - a.pct || (b.diff || 0) - (a.diff || 0)).map((r, i) => ({ ...r, _i: i + 1 })), top = rows[0];
+      const cols = [{ key: '_i', label: '#', num: true }, { key: 'name', label: 'Team', fmt: r => teamCellHtml(r, lg) }, { key: 'lgx', label: lg === 'mlb' ? 'League' : 'Conf', sortVal: r => r.lg || r.conf, fmt: r => esc(r.lg || r.conf) },
+        ...(lg !== 'nba' ? [{ key: 'divName', label: 'Division', cls: 'muted nw', fmt: r => esc(shortDiv(r.divName)) }] : []),
+        { key: 'w', label: 'W-L', num: true, cls: 'nw', sortVal: r => r.pct, fmt: r => `<b>${r.w}-${r.l}${r.t ? '-' + r.t : ''}</b>` }, { key: 'pct', label: 'PCT', num: true, fmt: r => fmtPct(r.pct) }, { key: 'gbx', label: 'GB', num: true, sortVal: r => gbFrom(top, r), fmt: r => fmtGB(gbFrom(top, r)) },
+        { key: 'diff', label: lg === 'mlb' ? 'RUN DIFF' : 'DIFF', num: true, fmt: r => esc(r.diff > 0 ? '+' + r.diff : r.diff ?? '') }, { key: 'status', label: 'Today', fmt: r => statusBadge(r, lg) }];
+      box.innerHTML = `<p class="muted small" style="margin:0 0 12px">All ${table.teams.length} teams by record. Tap a column to sort, e.g. by League or Division.</p>${renderTable(`sh-all-${key}`, cols, rows, { rowClass: r => (String(r.id) === PHILLY_ID[lg] ? 'us hl' : '') })}`;
     }
-    $('#stBox').innerHTML = groups.map(g => `<div class="section" style="margin-top:0;margin-bottom:24px"><h2 style="font-size:1.5rem">${esc(g.name)}</h2>${g.divisions.length ? `<div class="grid ${table.kind === 'mlb' ? 'g3' : 'g2'}">${g.divisions.map((d, i) => `<div>${miniDiv(table, pic, d, (d[0].divName || '').replace(/^(American|National) League /, ''), `lgdiv-${key}-${g.key}-${i}`)}</div>`).join('')}</div>` : (() => { const fake = { us: pic?.us, kind: table.kind }; return raceTableHtml(fake, { rows: g.ordered, showSeed: true, cutAfter: 6, cutAfter2: 10, gb: (r, rows) => gbFrom(rows[0], r) }, `lgconf-${key}-${g.key}`); })()}</div>`).join('');
   };
-  body.innerHTML = `<div class="filters" style="padding:10px 14px"><div class="seg" id="stSeg"><button data-m="div" class="on">${table.kind === 'nba' ? 'By conference' : 'By division'}</button><button data-m="all">Whole league</button></div><span class="muted small">${table.fallback ? `${table.year}–${String(table.year + 1).slice(2)} final standings (new season hasn't started)` : `Updated live · ${table.started ? 'season in progress' : 'season not started'}`}</span></div><div id="stBox"></div>`;
-  $('#stSeg').addEventListener('click', e => { const b = e.target.closest('[data-m]'); if (!b) return; $$('#stSeg button').forEach(x => x.classList.toggle('on', x === b)); draw(b.dataset.m); });
-  draw('div');
+  body.innerHTML = `<div class="filters" style="padding:10px 14px"><div class="seg" id="shSeg">${modes.map(([k, l]) => `<button data-m="${k}">${l}</button>`).join('')}</div><span class="muted small">${table.fallback ? `${table.year}–${String(table.year + 1).slice(2)} final standings (new season hasn't started)` : 'Live · your team is highlighted'}</span></div><div id="shBox"></div>`;
+  $('#shSeg').addEventListener('click', e => { const b = e.target.closest('[data-m]'); if (b) draw(b.dataset.m); });
+  draw(initial);
 }
-function leaguePicture(key, table, pic, body) {
-  const groups = Object.values(table.leagues), kind = table.kind;
-  const rules = kind === 'mlb' ? 'Six teams per league: three division winners (seeds 1–3) and three Wild Cards (4–6). The top two seeds get a bye.' : kind === 'nfl' ? 'Seven teams per conference: four division winners (1–4) and three wild cards (5–7). Only the #1 seed gets a bye.' : 'Seeds 1–6 clinch directly. Seeds 7–10 go to the Play-In Tournament.';
-  const fake = { us: pic?.us, kind };
-  body.innerHTML = `<p class="muted">${rules} Red lines mark the cut. ${table.fallback ? 'The new season has not started, so this is last season\'s final order.' : ''}</p><div class="stack" style="gap:26px">${groups.map(g => {
-    const cuts = kind === 'mlb' ? { cutAfter: 6 } : kind === 'nfl' ? { cutAfter: 7 } : { cutAfter: 6, cutAfter2: 10 };
-    const cut = kind === 'mlb' ? g.ordered[5] : kind === 'nfl' ? g.ordered[6] : g.ordered[5];
-    const scope = { rows: kind === 'mlb' ? g.ordered.slice(0, 10) : g.ordered.slice(0, kind === 'nfl' ? 10 : 12), showSeed: true, ...cuts, gbLabel: 'vs cut', gb: r => (kind === 'mlb' && r.status === 'div' ? 0 : -((r.w - cut.w) + (cut.l - r.l)) / 2) };
-    return `<div><h3 style="margin-bottom:8px">${esc(g.name)}</h3>${raceTableHtml(fake, scope, `pic-${key}-${g.key}`)}</div>`;
-  }).join('')}</div><p class="small dim" style="margin-top:12px">"vs cut": + = games ahead of the last playoff spot, otherwise games behind it.</p>`;
-}
+const leagueStandings = (key, table, pic, body) => standingsHub(key, table, pic, body, 'div');
+const leaguePicture = (key, table, pic, body) => standingsHub(key, table, pic, body, 'pic');
 async function leagueLeadersTab(key, table, body, alive) {
   const cur = key === 'nba' ? table.year : nowYear();
   const opts = [[null, key === 'nba' ? `${cur}–${String(cur + 1).slice(2)}${table.fallback ? ' (last season)' : ''}` : `${cur} season`], [cur - 1, key === 'nba' ? `${cur - 1}–${String(cur).slice(2)}` : `${cur - 1}`]];
@@ -201,7 +214,7 @@ async function leagueLeadersTab(key, table, body, alive) {
 async function leagueNewsTab(key, body, alive) {
   body.innerHTML = `<div class="split"><div class="card"><h3>Headlines</h3><div id="lgNews">${spinner()}</div></div><div class="card"><h3>Latest scores</h3><div id="lgScores">${spinner()}</div></div></div>`;
   API.leagueNews(key).then(n => { if (!alive()) return; $('#lgNews').innerHTML = n.length ? n.map(a => `<a class="news" href="${esc(a.link)}" target="_blank" rel="noopener">${a.img ? `<img src="${esc(a.img)}" alt="" loading="lazy">` : ''}<div><div class="t">${esc(a.title)}</div><div class="small muted">${ago(a.date)}</div></div></a>`).join('') : errBox('No headlines right now.'); });
-  API.leagueScores(key).then(g => { if (!alive()) return; $('#lgScores').innerHTML = g.length ? `<div class="stack" style="gap:8px">${g.slice(0, 24).map(x => `<a class="gamerow ${x.philly ? 'ph' : ''}" href="${esc(x.link || '#')}" target="_blank" rel="noopener"><span class="tm"><img src="${esc(x.away.logo)}" alt="" onerror="this.style.visibility='hidden'">${esc(x.away.abbr)}</span><b class="${x.away.win ? '' : 'dim'}">${esc(x.away.score ?? '')}</b><span class="at">${x.state === 'post' ? 'F' : x.state === 'in' ? 'LIVE' : '@'}</span><b class="${x.home.win ? '' : 'dim'}">${esc(x.home.score ?? '')}</b><span class="tm"><img src="${esc(x.home.logo)}" alt="" onerror="this.style.visibility='hidden'">${esc(x.home.abbr)}</span><span class="dim small">${esc(x.state === 'pre' ? fmtTime(new Date(x.ts).toISOString()) : x.detail)}</span></a>`).join('')}</div>` : '<div class="muted small">No games in the latest window.</div>'; });
+  API.leagueScores(key).then(g => { if (!alive()) return; $('#lgScores').innerHTML = g.length ? `<div class="stack" style="gap:8px">${g.slice(0, 24).map(x => `<a class="gamerow ${x.philly ? 'ph' : ''}" href="javascript:void(0)" data-game="espn|${key}|${x.id}|"><span class="tm"><img src="${esc(x.away.logo)}" alt="" onerror="this.style.visibility='hidden'">${esc(x.away.abbr)}</span><b class="${x.away.win ? '' : 'dim'}">${esc(x.away.score ?? '')}</b><span class="at">${x.state === 'post' ? 'F' : x.state === 'in' ? 'LIVE' : '@'}</span><b class="${x.home.win ? '' : 'dim'}">${esc(x.home.score ?? '')}</b><span class="tm"><img src="${esc(x.home.logo)}" alt="" onerror="this.style.visibility='hidden'">${esc(x.home.abbr)}</span><span class="dim small">${esc(x.state === 'pre' ? fmtTime(new Date(x.ts).toISOString()) : x.detail)}</span></a>`).join('')}</div>` : '<div class="muted small">No games in the latest window.</div>'; });
 }
 
 /* ---------- MLB pro stats (Stats tab) ---------- */
