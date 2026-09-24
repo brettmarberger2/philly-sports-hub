@@ -39,22 +39,24 @@ async function viewHome({ mount, alive }) {
   const allTitles = sum(totals, x => x.titles);
   const yr = H.years();
   mount.innerHTML = `
-    <section class="hero compact"><div class="hero-grid">
+    <section class="hero big"><div class="hero-grid">
       <div>
         <div class="tri"><span></span><span></span><span></span></div>
         <h1>Philly sports,<br><em>right now.</em></h1>
-        <p class="lede">Scores, standings, playoff races, stats and news for the Eagles, Phillies and 76ers. Plus every season since ${yr.min} when you want the history.</p>
-        <div class="row" style="margin-top:18px">
-          <a class="btn primary" style="--team:#0b1a30" href="#/leagues">Standings &amp; playoff races</a>
+        <p class="lede">Live scores, what's next, standings, playoff races, stats and news for the Eagles, Phillies and 76ers. Plus every season since ${yr.min}.</p>
+        <div class="herobtns">
+          <a class="btn primary" style="--team:#0b1a30" href="javascript:void(0)" data-jump="gd">🔴 Scores &amp; next games</a>
+          <a class="btn" href="javascript:void(0)" data-jump="st">Standings &amp; playoffs</a>
           <a class="btn" href="javascript:void(0)" data-jump="ld">League leaders</a>
+          <a class="btn" href="javascript:void(0)" data-jump="nw">Headlines</a>
           <a class="btn" href="#/history">📜 History</a>
           <a class="btn" href="#/year">🗓️ Year Explorer</a>
         </div>
         <form class="yearjump" id="yjForm" style="margin-top:14px" autocomplete="off"><input type="number" id="yjIn" inputmode="numeric" min="${yr.min}" max="${new Date().getFullYear()}" placeholder="Jump to any year" aria-label="Jump to a year"><button type="submit">Jump →</button></form>
       </div>
-      <div class="hero-tiles" id="heroTiles">${TEAM_KEYS.map(k => `<a class="hero-tile" href="#/team/${k}" style="--c1:${TEAMS[k].primary}"><img src="${teamLogoOn(TEAMS[k])}" alt=""><div><div class="nm">${TEAMS[k].nick}</div><div class="sub" id="hs-${k}">${TEAMS[k].sportName}</div></div><div class="rc">—<small>Record</small></div></a>`).join('')}</div>
+      <div class="hero-tiles now-tiles" id="heroTiles">${TEAM_KEYS.map(k => `<div class="hero-tile" style="--c1:${TEAMS[k].primary}"><a class="ht-top" href="#/team/${k}"><img src="${teamLogoOn(TEAMS[k])}" alt=""><div><div class="nm">${TEAMS[k].nick}</div><div class="sub" id="hs-${k}">${TEAMS[k].sportName}</div></div><div class="rc">—<small>Record</small></div></a><div class="ht-games" id="hg-${k}"><span class="ht-g dim">Loading games…</span></div></div>`).join('')}</div>
     </div></section>
-    <nav class="jumpbar">${[['gd', 'Game day'], ['up', 'Coming up'], ['st', 'Standings'], ['ld', 'Leaders'], ['nw', 'Headlines'], ['hist', '📜 History &amp; Time machine']].map(([id, l]) => `<a href="javascript:void(0)" data-jump="${id}">${l}</a>`).join('')}</nav>
+    <div id="upNext"></div>
     <div id="liveStrip"></div>
     <section class="section" id="gd"><h2>Game day</h2><div class="grid g3" id="teamCards">${TEAM_KEYS.map(k => `<div class="card">${spinner()}</div>`).join('')}</div></section>
     <section class="section" id="up"><h2>Coming up</h2><div class="card" id="upcoming">${spinner('Loading schedules…')}</div></section>
@@ -120,7 +122,14 @@ async function viewHome({ mount, alive }) {
       return { k, t, info, gs, pic };
     }));
     if (!alive()) return;
-    $$('#heroTiles .hero-tile').forEach((el, i) => { const { info: inf, pic, k } = stats[i]; el.querySelector('.rc').innerHTML = `${inf && (inf.w + inf.l + inf.tie) > 0 ? esc(inf.summary) : '—'}<small>${esc(inf?.standingSummary || 'Record')}</small>`; if (pic) $(`#hs-${k}`).textContent = pic.statusShort; });
+    $$('#heroTiles .hero-tile').forEach((el, i) => {
+      const { info: inf, pic, k, t, gs } = stats[i];
+      el.querySelector('.rc').innerHTML = `${inf && (inf.w + inf.l + inf.tie) > 0 ? esc(inf.summary) : '—'}<small>${esc(inf?.standingSummary || 'Record')}</small>`;
+      if (pic) $(`#hs-${k}`).textContent = pic.statusShort;
+      const chip = (lab, g) => (g ? `<a class="ht-g" href="javascript:void(0)" data-game="${gameRef(t, g)}"><span class="l">${lab}</span>${g.state === 'in' ? `<b>${g.ourScore ?? 0}–${g.oppScore ?? 0}</b> ${g.home ? 'vs' : '@'} ${esc(g.opp.abbr || g.opp.short)} <span class="lv">${esc(g.detail)}</span>` : g.state === 'post' ? `<b class="${g.result === 'W' ? 'w' : 'l'}">${g.result} ${g.ourScore}–${g.oppScore}</b> ${g.home ? 'vs' : '@'} ${esc(g.opp.abbr || g.opp.short)}` : `${g.home ? 'vs' : '@'} ${esc(g.opp.abbr || g.opp.short)} · ${esc(whenShort(g.date))}`}</a>` : '');
+      $(`#hg-${k}`).innerHTML = (gs?.live ? chip('LIVE', gs.live) : chip('LAST', gs?.last)) + chip('NEXT', gs?.next) || '<span class="ht-g dim">No games scheduled</span>';
+    });
+    homeUpNext(stats);
     homeStandings(stats);
     $('#teamCards').innerHTML = stats.map(({ k, t, info, gs, pic }) => {
       const tot = totals[TEAM_KEYS.indexOf(k)];
@@ -180,4 +189,39 @@ async function homeLeaders(alive) {
   if (!alive() || !$('#ldSnap')) return;
   $('#ldSnap').innerHTML = res.map(({ lg, lists }) => lists.length ? `<div class="ldrow"><div class="ldlab"><img src="${teamLogo(TEAMS[LEAGUES[lg].team])}" alt=""><b>${LEAGUES[lg].short}</b><span class="small muted">${esc(lists[0].season)}</span><a class="small" href="#/league/${lg}/leaders">All leaders ›</a></div>
     <div class="ldcards">${lists.map(l => `<button class="ldcard" data-lb="${lg}|${l.key}|"><div class="lh">${esc(l.label)} <span>›</span></div>${l.rows.slice(0, 3).map(r => `<div class="lr ${r.philly ? 'ph' : ''}"><span class="rk">${r.rank}</span><span class="nm">${esc(r.name)} <span class="dim">${esc(r.abbr || '')}</span></span><b>${esc(r.value)}</b></div>`).join('')}</button>`).join('')}</div></div>` : '').join('') || errBox('League leaders are unavailable right now.');
+}
+
+/** "Tonight 7:05 PM", "Tomorrow 1:00 PM", "Sat, Sep 27 · 4:25 PM" */
+function whenTxt(iso) {
+  const d = new Date(iso), now = new Date(), day = x => new Date(x.getFullYear(), x.getMonth(), x.getDate()).getTime();
+  const diff = Math.round((day(d) - day(now)) / 864e5), time = fmtTime(iso);
+  return diff === 0 ? (d.getHours() >= 17 ? `Tonight ${time}` : `Today ${time}`) : diff === 1 ? `Tomorrow ${time}` : `${fmtDay(iso)} · ${time}`;
+}
+function countdown(iso) {
+  const m = Math.round((new Date(iso) - Date.now()) / 60000);
+  if (m <= 0) return 'Starting now';
+  if (m < 60) return `Starts in ${m} min`;
+  if (m < 24 * 60) return `Starts in ${Math.floor(m / 60)}h ${m % 60}m`;
+  return `In ${Math.round(m / 1440)} day${Math.round(m / 1440) === 1 ? '' : 's'}`;
+}
+/** Big banner for the very next Philly game (or every game that's live right now). */
+function homeUpNext(stats) {
+  const el = $('#upNext'); if (!el) return;
+  const live = stats.filter(s => s.gs?.live).map(s => ({ ...s, g: s.gs.live }));
+  const next = stats.filter(s => s.gs?.next).map(s => ({ ...s, g: s.gs.next })).sort((a, b) => a.g.ts - b.g.ts)[0];
+  const card = ({ t, g }, isLive) => `<a class="upnext ${isLive ? 'live' : ''}" href="javascript:void(0)" data-game="${gameRef(t, g)}" style="--c1:${t.primary}">
+      <div class="un-lab">${isLive ? '<span class="badge live">Live now</span>' : '<span class="un-tag">Up next</span>'}<span>${esc(t.nick)} · ${esc(g.label || t.sportName)}</span></div>
+      <div class="un-main"><img src="${teamLogo(t)}" alt=""><div class="un-mid">${isLive ? `<b class="un-score">${g.ourScore ?? 0} – ${g.oppScore ?? 0}</b><span>${esc(g.detail)}</span>` : `<b>${g.home ? 'vs' : 'at'} ${esc(g.opp.name)}</b><span>${esc(whenTxt(g.date))}${g.tv ? ' · ' + esc(g.tv) : ''}</span>`}</div><img src="${esc(g.opp.logo)}" alt="" onerror="this.style.visibility='hidden'"></div>
+      <div class="un-foot">${isLive ? 'Tap for the live game summary ›' : `<span class="cd">${esc(countdown(g.date))}</span><span class="gprev" data-prev="${gameRef(t, g)}"></span>`}</div></a>`;
+  el.innerHTML = live.length ? `<div class="grid ${live.length > 1 ? 'g2' : ''}" style="margin-top:18px">${live.map(x => card(x, true)).join('')}</div>` : next ? `<div style="margin-top:18px">${card(next, false)}</div>` : '';
+  fillPreviewLines(el);
+}
+/** Compact version for small chips: "Tonight 7:05", "Tmrw 6:05 PM", "Mon 8:15 PM", "Oct 20". */
+function whenShort(iso) {
+  const d = new Date(iso), now = new Date(), day = x => new Date(x.getFullYear(), x.getMonth(), x.getDate()).getTime();
+  const diff = Math.round((day(d) - day(now)) / 864e5), time = fmtTime(iso);
+  if (diff === 0) return d.getHours() >= 17 ? `Tonight ${time}` : `Today ${time}`;
+  if (diff === 1) return `Tmrw ${time}`;
+  if (diff > 1 && diff < 7) return `${d.toLocaleDateString('en-US', { weekday: 'short' })} ${time}`;
+  return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
 }

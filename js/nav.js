@@ -66,3 +66,23 @@ function renderBottomNav(activeKey) {
     ['history', 'History', '<svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>'], ['leagues', 'Leagues', '<svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 20V10M10 20V4M16 20v-8M22 20H2"/></svg>']];
   $('#bnav').innerHTML = items.map(([p, l, ic]) => `<a href="#/${p}" class="${(p === '' ? activeKey === '' : activeKey.startsWith(p)) ? 'on' : ''}">${ic}<span>${esc(l)}</span></a>`).join('');
 }
+
+/* Tapping a link to the page you're already on (Home, a team's own tab, the logo) scrolls back to the top. */
+document.addEventListener('click', e => {
+  const a = e.target.closest('a[href^="#/"]'); if (!a || a.closest('#modal')) return;
+  const norm = h => (h || '#/').replace(/\/+$/, '') || '#';
+  if (norm(a.getAttribute('href')) !== norm(location.hash)) return;
+  e.preventDefault();
+  if (typeof setMenu === 'function') setMenu(false);
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+}, true);
+
+/* Floating "back to top" button once you've scrolled a long way down. */
+(() => {
+  const b = document.createElement('button');
+  b.className = 'totop'; b.type = 'button'; b.setAttribute('aria-label', 'Back to top'); b.textContent = '↑';
+  b.addEventListener('click', () => window.scrollTo({ top: 0, behavior: 'smooth' }));
+  document.body.appendChild(b);
+  const upd = () => b.classList.toggle('show', window.scrollY > 1400);
+  addEventListener('scroll', upd, { passive: true }); upd();
+})();
