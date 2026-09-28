@@ -52,6 +52,7 @@ function renderCrumbs(parts) {
   else if (head === 'leagues') c.push([null, 'Leagues']);
   else if (head === 'league' && LEAGUES[parts[1]]) { c.push(['#/leagues', 'Leagues'], [`#/league/${parts[1]}`, LEAGUES[parts[1]].short]); if (parts[2] && parts[2] !== 'standings') c.push([null, (LEAGUE_TABS.find(x => x[0] === parts[2]) || [])[1] || parts[2]]); }
   else if (head === 'history') c.push([null, 'History']);
+  else if (head === 'playoffs') c.push([null, 'MLB Playoffs']);
   else if (head === 'year') { c.push(['#/year', 'Year Explorer']); if (parts[1]) c.push([null, parts[1]]); }
   else if (head) c.push([null, { stadiums: 'Stadiums', shop: 'Shop', about: 'About the data' }[head] || head]);
   const el = $('#crumbs');

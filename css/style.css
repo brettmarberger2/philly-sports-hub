@@ -697,3 +697,30 @@ table.linescore th, table.linescore td { padding: 8px 10px; } table.linescore .t
   .hero.big .hero-grid { gap: 18px; }
 }
 .ht-g b.w, .ht-g b.l { padding: 1px 6px; border-radius: 6px; background: rgba(0,0,0,.28); } .ht-g b.l { color: #ffe1dd; }
+
+/* ---------- v14: postseason bracket ---------- */
+.psc { padding: 16px; border-width: 2px; } .psc.us { border-color: var(--team); background: color-mix(in srgb, var(--team) 5%, var(--card)); }
+.psc-head { display: flex; justify-content: space-between; align-items: center; font-size: .72rem; font-weight: 800; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); margin-bottom: 10px; }
+.psc-head b { color: var(--text); font-size: .78rem; } .psc-head b.done { color: var(--accent); }
+.psc-teams { border: 1px solid var(--line); border-radius: 12px; overflow: hidden; margin-bottom: 10px; }
+.pst { display: grid; grid-template-columns: 22px 30px minmax(0, 1fr) auto; align-items: center; gap: 10px; padding: 8px 10px; color: var(--text); background: var(--card); }
+.pst:hover { text-decoration: none; background: var(--bg2); }
+.pst + .pst { border-top: 1px solid var(--line); }
+.pst-seed { font-family: var(--display); font-size: .95rem; color: var(--muted); text-align: center; }
+.pst img { width: 26px; height: 26px; object-fit: contain; }
+.pst-name { min-width: 0; display: flex; flex-direction: column; line-height: 1.25; }
+.pst-name b { font-size: .92rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.pst-wins { font-family: var(--display); font-size: 1.4rem; font-weight: 800; color: var(--dim); min-width: 20px; text-align: right; }
+.pst.w .pst-wins { color: var(--good); } .pst.w .pst-name b { font-weight: 800; }
+.pst.us .pst-name b { color: var(--team); }
+.pst-tbd { display: grid; grid-template-columns: 22px 30px minmax(0, 1fr) auto; align-items: center; gap: 10px; padding: 8px 10px; background: var(--bg2); }
+.pst-tbd .pst-name { line-height: 1.25; } .pst-tbd .pst-wins { color: var(--dim); }
+.psc-games { display: flex; flex-direction: column; gap: 4px; }
+.psg { display: flex; align-items: center; gap: 8px; padding: 6px 8px; border-radius: 8px; font-size: .8rem; color: var(--text); background: var(--bg2); }
+.psg:hover { text-decoration: none; background: var(--card2); }
+.psg-n { font-weight: 800; color: var(--muted); min-width: 34px; font-size: .7rem; text-transform: uppercase; }
+.psg-sc { font-family: var(--display); font-size: 1rem; display: flex; gap: 4px; }
+.psg-d { flex: 1; min-width: 0; }
+.psg-odds { font-weight: 700; color: var(--accent); white-space: nowrap; }
+.psg.live .badge { margin-right: 4px; }
+@media (max-width: 620px) { .pst-name b { font-size: .86rem; } .psg { flex-wrap: wrap; } }

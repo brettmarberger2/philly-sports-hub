@@ -18,10 +18,11 @@ function renderNav(activeKey) {
   const items = [
     ['', 'Home', null],
     ...TEAM_KEYS.map(k => [`team/${k}`, TEAMS[k].nick, teamLogo(TEAMS[k])]),
+    ['playoffs', 'Playoffs', null],
     ['leagues', 'Leagues', null], ['history', 'History', null], ['year', 'Year Explorer', null], ['stadiums', 'Stadiums', null], ['shop', 'Shop', null],
   ];
   const isAct = p => activeKey === p || (p && activeKey.startsWith(p) && p !== '');
-  $('#mmenu').innerHTML = `<div class="mh">Teams</div><div class="mgrid">${TEAM_KEYS.map(k => `<a href="#/team/${k}" class="${isAct('team/' + k) ? 'active' : ''}"><img src="${teamLogo(TEAMS[k])}" alt="">${TEAMS[k].nick}</a>`).join('')}<a href="#/history" class="${isAct('history') ? 'active' : ''}">📜 History</a></div><div class="mh">Explore</div><div class="mgrid"><a href="#/" class="${activeKey === '' ? 'active' : ''}">🏠 Home</a><a href="#/leagues" class="${isAct('leagues') ? 'active' : ''}">📊 Leagues</a><a href="#/year" class="${isAct('year') ? 'active' : ''}">🗓️ Year Explorer</a><a href="#/stadiums" class="${isAct('stadiums') ? 'active' : ''}">🏟️ Stadiums</a><a href="#/shop" class="${isAct('shop') ? 'active' : ''}">🛍️ Shop</a></div>`;
+  $('#mmenu').innerHTML = `<div class="mh">Teams</div><div class="mgrid">${TEAM_KEYS.map(k => `<a href="#/team/${k}" class="${isAct('team/' + k) ? 'active' : ''}"><img src="${teamLogo(TEAMS[k])}" alt="">${TEAMS[k].nick}</a>`).join('')}<a href="#/history" class="${isAct('history') ? 'active' : ''}">📜 History</a></div><div class="mh">Explore</div><div class="mgrid"><a href="#/" class="${activeKey === '' ? 'active' : ''}">🏠 Home</a><a href="#/playoffs" class="${isAct('playoffs') ? 'active' : ''}">⚾ Playoffs</a><a href="#/leagues" class="${isAct('leagues') ? 'active' : ''}">📊 Leagues</a><a href="#/year" class="${isAct('year') ? 'active' : ''}">🗓️ Year Explorer</a><a href="#/stadiums" class="${isAct('stadiums') ? 'active' : ''}">🏟️ Stadiums</a><a href="#/shop" class="${isAct('shop') ? 'active' : ''}">🛍️ Shop</a></div>`;
   $('#nav').innerHTML = items.map(([p, label, img], i) => `${i === 1 || label === 'Leagues' ? '<span class="sep"></span>' : ''}<a href="#/${p}" class="${activeKey === p || (p && activeKey.startsWith(p) && p !== '') ? 'active' : ''}">${img ? `<img src="${img}" alt="">` : ''}${label}</a>`).join('');
 }
 
@@ -57,7 +58,7 @@ async function route() {
   if (head === 'legend') activeKey = '';
   renderNav(activeKey); renderBottomNav(activeKey); renderCrumbs(parts);
   const restoreY = NAV.before(location.hash || '#/');
-  setTheme(head === 'team' || head === 'season' ? parts[1] : head === 'league' && LEAGUES[parts[1]] ? LEAGUES[parts[1]].team : null);
+  setTheme(head === 'team' || head === 'season' ? parts[1] : head === 'league' && LEAGUES[parts[1]] ? LEAGUES[parts[1]].team : head === 'playoffs' ? 'phillies' : null);
   closeModal();
   setMenu(false);
   const prev = App.cur; App.cur = { head, key: parts[1] };
@@ -68,6 +69,7 @@ async function route() {
     if (!head) fn = viewHome;
     else if (head === 'team' && TEAMS[parts[1]]) fn = viewTeam;
     else if (head === 'history') fn = viewHistoryHub;
+    else if (head === 'playoffs') fn = viewPlayoffs;
     else if (head === 'leagues') fn = viewLeagues;
     else if (head === 'league' && LEAGUES[parts[1]]) fn = viewLeague;
     else if (head === 'year') fn = viewYear;
@@ -76,7 +78,7 @@ async function route() {
     else if (head === 'shop') fn = viewShop;
     else if (head === 'about') fn = viewAbout;
     else { view.innerHTML = `<div class="card center"><h2>Page not found</h2><a class="btn" href="#/">Back home</a></div>`; return; }
-    document.title = ({ '': 'Philly Sports Hub', team: `${TEAMS[parts[1]]?.nick || ''} · Philly Sports Hub`, history: 'History · Philly Sports Hub', leagues: 'Leagues · Philly Sports Hub', league: `${LEAGUES[parts[1]]?.short || ''} Standings · Philly Sports Hub`, year: 'Year Explorer · Philly Sports Hub', season: 'Season · Philly Sports Hub', stadiums: 'Stadiums · Philly Sports Hub', shop: 'Shop · Philly Sports Hub' })[head] || 'Philly Sports Hub';
+    document.title = ({ '': 'Philly Sports Hub', team: `${TEAMS[parts[1]]?.nick || ''} · Philly Sports Hub`, history: 'History · Philly Sports Hub', playoffs: 'MLB Playoffs · Philly Sports Hub', leagues: 'Leagues · Philly Sports Hub', league: `${LEAGUES[parts[1]]?.short || ''} Standings · Philly Sports Hub`, year: 'Year Explorer · Philly Sports Hub', season: 'Season · Philly Sports Hub', stadiums: 'Stadiums · Philly Sports Hub', shop: 'Shop · Philly Sports Hub' })[head] || 'Philly Sports Hub';
     await fn({ parts, q, mount: view, token: my, alive: () => my === App.token });
     NAV.after(restoreY, () => my === App.token);
   } catch (e) {

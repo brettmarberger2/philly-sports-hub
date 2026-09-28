@@ -33,6 +33,7 @@ function picBannerHtml(pic, compact = false) {
 async function tabPicture(t, { mount, alive }) {
   const pic = await API.picture(t); if (!alive()) return;
   mount.innerHTML = `${picBannerHtml(pic)}
+    ${t.league === 'mlb' ? `<div class="row" style="margin:14px 0 0"><a class="btn small primary" href="#/playoffs">See the full MLB playoff bracket →</a></div>` : ''}
     <div class="section" style="margin-top:22px"><h2>${LEAGUES[t.league].short} standings</h2><div id="shHub"></div></div>
     <div class="split section"><div class="card"><h3>What needs to happen</h3><ul class="needs">${pic.bullets.map(b => `<li>${b}</li>`).join('')}</ul><p class="disc">Computed live from the standings. Magic numbers assume the nearest competitor; final seeding also depends on tiebreakers.</p></div>
       <div class="card" id="remCard"><h3>Remaining schedule</h3>${spinner('Loading schedule…')}</div></div>`;
@@ -127,7 +128,7 @@ async function viewLeague({ parts, q, mount, alive }) {
   const table = await API.leagueTable(key);
   const pic = await safe(API.picture(t), null); if (!alive()) return;
   mount.innerHTML = `<div class="team-head" style="--team:${t.primary}"><img class="logo" src="${teamLogoOn(t)}" alt=""><div class="meta"><div class="small muted" style="letter-spacing:.12em;text-transform:uppercase">${esc(L.sub)}${table.fallback ? ` · showing ${table.year}–${String(table.year + 1).slice(2)} final` : ''}</div><h1>${esc(L.name)}</h1>
-      <div class="row small muted"><a href="#/team/${t.key}/picture" style="color:#fff;text-decoration:underline">${esc(t.nick)}: ${esc(pic?.statusShort || '')}</a></div></div></div>
+      <div class="row small muted"><a href="#/team/${t.key}/picture" style="color:#fff;text-decoration:underline">${esc(t.nick)}: ${esc(pic?.statusShort || '')}</a>${key === 'mlb' ? ' · <a href="#/playoffs" style="color:#fff;text-decoration:underline">Playoff bracket</a>' : ''}</div></div></div>
     <div class="tabs" id="tabs">${LEAGUE_TABS.map(([k, l]) => `<a href="#/league/${key}/${k}" class="${k === tab ? 'active' : ''}">${l}</a>`).join('')}</div><div id="lgBody">${spinner()}</div>`;
   const body = $('#lgBody');
   if (tab === 'standings') return leagueStandings(key, table, pic, body);

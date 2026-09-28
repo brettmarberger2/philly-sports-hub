@@ -22,11 +22,13 @@ async function mlbPreview(pk) {
   const probIds = sides.map(s => g.teams[s].probablePitcher?.id).filter(Boolean);
   const posted = sides.map(s => (g.lineups?.[s + 'Players'] || []).map(p => p.id));
   const lineIds = await Promise.all(sides.map((s, i) => (posted[i].length ? posted[i] : recentLineup(g.teams[s].team.id, g.gameDate))));
-  const [pit, bat, tbl] = await Promise.all([mlbPeople(probIds, 'pitching', season), mlbPeople([...lineIds[0], ...lineIds[1]], 'hitting', season), safe(API.mlbTable(season), null)]);
-  return sides.map((s, i) => {
+  const [pit, bat, tbl, odds] = await Promise.all([mlbPeople(probIds, 'pitching', season), mlbPeople([...lineIds[0], ...lineIds[1]], 'hitting', season), safe(API.mlbTable(season), null), safe(API.gameOdds(g.teams.away.team.abbreviation, g.teams.home.team.abbreviation, g.officialDate, g.gameType !== 'R'), null)]);
+  const out = sides.map((s, i) => {
     const tm = g.teams[s].team, row = tbl?.teams.find(x => x.id === tm.id), pp = g.teams[s].probablePitcher;
     return { side: s, id: String(tm.id), name: tm.name, abbr: tm.abbreviation, row, posted: posted[i].length > 0, pitcher: pp ? { id: pp.id, name: pp.fullName, note: pp.note || '', ...(pit.get(pp.id) || {}) } : null, lineup: lineIds[i].map(id => ({ id, ...(bat.get(id) || { name: '', s: {} }) })) };
   });
+  out.odds = odds;
+  return out;
 }
 
 /* ---------- preview view ---------- */
@@ -39,6 +41,7 @@ async function fillPreview(g) {
     const p = await safe(mlbPreview(g.id), null); if (!box()) return;
     if (!p) { box().innerHTML = errBox('Preview not available.'); return; }
     const byId = id => p.find(x => x.id === id);
+    if (p.odds) html += `<div class="pvodds"><div><span class="muted small">Line (${esc(p.odds.provider || 'odds')})</span><b>${esc(p.odds.details || '—')}</b></div>${p.odds.ou != null ? `<div><span class="muted small">Over/under</span><b>${esc(p.odds.ou)}</b></div>` : ''}${p.odds.moneyline ? `<div><span class="muted small">Moneyline (away/home)</span><b>${esc(p.odds.moneyline.away ?? '—')} / ${esc(p.odds.moneyline.home ?? '—')}</b></div>` : ''}</div>`;
     html += `<h3 class="pvt">Probable pitchers</h3>` + two(t => { const x = byId(t.id)?.pitcher; if (!x) return '<div class="muted small">Not announced yet.</div>'; const s = x.s || {}; return `<div class="pvp"><b>${esc(x.name)}</b>${x.hand ? ` <span class="dim small">${x.hand}HP</span>` : ''}<div class="pvstat"><span><b>${s.wins ?? 0}-${s.losses ?? 0}</b>W-L</span><span><b>${esc(s.era ?? '—')}</b>ERA</span><span><b>${esc(s.whip ?? '—')}</b>WHIP</span><span><b>${s.strikeOuts ?? '—'}</b>K</span><span><b>${esc(s.inningsPitched ?? '—')}</b>IP</span></div>${x.note ? `<p class="small muted" style="margin:6px 0 0">${esc(x.note)}</p>` : ''}</div>`; });
     const anyPosted = p.some(x => x.posted);
     html += `<h3 class="pvt">${anyPosted ? 'Starting lineups' : 'Expected lineups'}</h3><p class="small muted" style="margin:-4px 0 8px">${anyPosted ? 'Official lineups as posted.' : 'Official lineups post about 2 hours before first pitch. Shown: each team\'s most recent batting order.'}</p>` +
@@ -74,7 +77,7 @@ async function previewLine(ref) {
   if (kind === 'mlb') {
     const p = await safe(mlbPreview(id), null); if (!p) return '';
     const f = x => (x.pitcher ? `${x.pitcher.name.split(' ').slice(-1)[0]} (${x.pitcher.s?.wins ?? 0}-${x.pitcher.s?.losses ?? 0}, ${x.pitcher.s?.era ?? '—'})` : 'TBD');
-    return `<b>Probables:</b> ${esc(f(p[0]))} vs ${esc(f(p[1]))}`;
+    return `<b>Probables:</b> ${esc(f(p[0]))} vs ${esc(f(p[1]))}${p.odds?.details ? `<br><b>Line:</b> ${esc(p.odds.details)}${p.odds.ou != null ? ` · O/U ${esc(p.odds.ou)}` : ''}` : ''}`;
   }
   const g = await safe(API.gameSummary(kind, lg, id), null); if (!g) return '';
   const parts = [];
