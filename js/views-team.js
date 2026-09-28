@@ -314,7 +314,7 @@ async function tabSchedule(t, { mount, alive, q }) {
     const yr = v === 'cur' ? null : +v;
     const r = await safe(API.schedule(t, yr), null); if (!alive()) return;
     if (!r) { $('#schedBody').innerHTML = errBox('Schedule unavailable.'); return; }
-    games = r.games; season = yr; if (renderTable.state.sched) renderTable.state.sched.key = 'ts'; paint();
+    games = r.games; season = yr; if (renderTable.state?.sched) renderTable.state.sched.key = 'ts'; paint();
   };
   $('#schedYear').addEventListener('change', e => load(e.target.value));
   $('#schedF').addEventListener('click', e => { const b = e.target.closest('[data-f]'); if (!b) return; filter = b.dataset.f; $$('#schedF .chip').forEach(c => c.classList.toggle('on', c === b)); paint(); });
