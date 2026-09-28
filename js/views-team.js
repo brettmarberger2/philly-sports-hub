@@ -55,7 +55,7 @@ function standingsTable(std, t) {
 }
 
 async function tabOverview(t, { mount, alive }) {
-  mount.innerHTML = `<div class="split"><div class="stack">
+  mount.innerHTML = `<div id="ovPs"></div><div class="split"><div class="stack">
       <div class="card" id="ovGames">${spinner()}</div>
       <div class="card" id="ovLast">${spinner('Loading last game…')}</div>
       <div class="card"><h3>Standings</h3><div id="ovStd">${spinner()}</div></div>
@@ -71,6 +71,13 @@ async function tabOverview(t, { mount, alive }) {
   const infoP = safe(API.team(t)), gsP = safe(API.gameStatus(t)), rosterP = safe(API.roster(t)), stdP = safe(API.standings(t)), leadP = (t.league === 'nba' ? API.nbaTable().then(tb => API.leaders(t, tb.fallback ? tb.year : null)) : API.leaders(t)).catch(() => []), newsP = safe(API.news(t, 6), []);
 
   safe(API.picture(t), null).then(pic => { if (alive()) $('#ovPicture').innerHTML = pic ? pictureCardHtml(pic, t) : '<h3>Playoff picture</h3><div class="muted small">Standings are not available right now.</div>'; });
+  if (t.league === 'mlb') {
+    safe(API.mlbPostseason(), null).then(async ps => {
+      const mine = ps?.series?.find(s => s.involvesUs); if (!mine || !alive()) return;
+      await attachPostseasonOdds([mine]); if (!alive()) return;
+      $('#ovPs').innerHTML = phillyPostseasonBannerHtml(mine);
+    });
+  }
   const drawGames = async () => {
     const gs = await gsP; if (!alive() || !gs) { if (alive()) $('#ovGames').innerHTML = errBox('Schedule data unavailable.'); return; }
     const played = gs.games.filter(g => g.state === 'post' && (g.stype !== 1 || gs.games.every(x => x.stype === 1)));

@@ -172,12 +172,15 @@ function halfHtml(h, mirror) {
 function bracketHtml(data) {
   const AL = leagueHalfSeries(data.series, 'AL'), NL = leagueHalfSeries(data.series, 'NL');
   const ws = data.series.find(s => s.gameType === 'W') || null;
-  return `<div class="bwrap"><div class="bracket">
-    ${halfHtml(AL, false)}
-    <div class="brk-ws-col"><div class="brk-lab">World Series</div><div class="brk-col-body">${brkMatchHtml(ws)}</div></div>
-    ${halfHtml(NL, true)}
-  </div></div>
-  <p class="small dim" style="margin-top:10px">American League on the left, National League on the right, meeting at the World Series. Tap any matchup to see the full schedule, results and odds.</p>`;
+  return `<div class="brk-card">
+    <div class="brk-legend"><span><i style="background:var(--good)"></i> Series winner / bye</span><span><i style="background:var(--team)"></i> Phillies</span><span><i style="background:var(--gold)"></i> World Series</span><span>Tap any matchup for the full schedule, results and odds</span></div>
+    <div class="bwrap"><div class="bracket">
+      ${halfHtml(AL, false)}
+      <div class="brk-ws-col"><div class="brk-lab">World Series</div><div class="brk-col-body">${brkMatchHtml(ws)}</div></div>
+      ${halfHtml(NL, true)}
+    </div></div>
+    <p class="small dim" style="margin:14px 0 0">American League on the left, National League on the right, meeting at the World Series.</p>
+  </div>`;
 }
 
 async function viewPlayoffs({ mount, alive }) {
