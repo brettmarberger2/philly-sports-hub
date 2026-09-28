@@ -31,9 +31,14 @@ function picBannerHtml(pic, compact = false) {
 
 /* ---------- Playoff picture tab ---------- */
 async function tabPicture(t, { mount, alive }) {
-  const pic = await API.picture(t); if (!alive()) return;
-  mount.innerHTML = `${picBannerHtml(pic)}
-    ${t.league === 'mlb' ? `<div class="row" style="margin:14px 0 0"><a class="btn small primary" href="#/playoffs">See the full MLB playoff bracket →</a></div>` : ''}
+  const isMlb = t.league === 'mlb';
+  const [pic, ps] = await Promise.all([API.picture(t), isMlb ? safe(API.mlbPostseason(), null) : Promise.resolve(null)]);
+  if (!alive()) return;
+  const mine = ps?.series?.find(s => s.involvesUs);
+  let psBanner = '';
+  if (mine) { await attachPostseasonOdds([mine]); if (!alive()) return; psBanner = phillyPostseasonBannerHtml(mine); }
+  mount.innerHTML = `${psBanner}${picBannerHtml(pic)}
+    ${isMlb ? `<div class="row" style="margin:14px 0 0"><a class="btn small primary" href="#/playoffs">See the full MLB playoff bracket →</a></div>` : ''}
     <div class="section" style="margin-top:22px"><h2>${LEAGUES[t.league].short} standings</h2><div id="shHub"></div></div>
     <div class="split section"><div class="card"><h3>What needs to happen</h3><ul class="needs">${pic.bullets.map(b => `<li>${b}</li>`).join('')}</ul><p class="disc">Computed live from the standings. Magic numbers assume the nearest competitor; final seeding also depends on tiebreakers.</p></div>
       <div class="card" id="remCard"><h3>Remaining schedule</h3>${spinner('Loading schedule…')}</div></div>`;

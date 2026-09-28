@@ -16,14 +16,14 @@ function setTheme(key) {
 
 function renderNav(activeKey) {
   const items = [
-    ['', 'Home', null],
-    ...TEAM_KEYS.map(k => [`team/${k}`, TEAMS[k].nick, teamLogo(TEAMS[k])]),
-    ['playoffs', 'Playoffs', null],
     ['leagues', 'Leagues', null], ['history', 'History', null], ['year', 'Year Explorer', null], ['stadiums', 'Stadiums', null], ['shop', 'Shop', null],
   ];
   const isAct = p => activeKey === p || (p && activeKey.startsWith(p) && p !== '');
-  $('#mmenu').innerHTML = `<div class="mh">Teams</div><div class="mgrid">${TEAM_KEYS.map(k => `<a href="#/team/${k}" class="${isAct('team/' + k) ? 'active' : ''}"><img src="${teamLogo(TEAMS[k])}" alt="">${TEAMS[k].nick}</a>`).join('')}<a href="#/history" class="${isAct('history') ? 'active' : ''}">📜 History</a></div><div class="mh">Explore</div><div class="mgrid"><a href="#/" class="${activeKey === '' ? 'active' : ''}">🏠 Home</a><a href="#/playoffs" class="${isAct('playoffs') ? 'active' : ''}">⚾ Playoffs</a><a href="#/leagues" class="${isAct('leagues') ? 'active' : ''}">📊 Leagues</a><a href="#/year" class="${isAct('year') ? 'active' : ''}">🗓️ Year Explorer</a><a href="#/stadiums" class="${isAct('stadiums') ? 'active' : ''}">🏟️ Stadiums</a><a href="#/shop" class="${isAct('shop') ? 'active' : ''}">🛍️ Shop</a></div>`;
-  $('#nav').innerHTML = items.map(([p, label, img], i) => `${i === 1 || label === 'Leagues' ? '<span class="sep"></span>' : ''}<a href="#/${p}" class="${activeKey === p || (p && activeKey.startsWith(p) && p !== '') ? 'active' : ''}">${img ? `<img src="${img}" alt="">` : ''}${label}</a>`).join('');
+  $('#mmenu').innerHTML = `<div class="mh">Teams</div><div class="mgrid">${TEAM_KEYS.map(k => `<a href="#/team/${k}" class="${isAct('team/' + k) ? 'active' : ''}"><img src="${teamLogo(TEAMS[k])}" alt="">${TEAMS[k].nick}</a>`).join('')}<a href="#/history" class="${isAct('history') ? 'active' : ''}">📜 History</a></div><div class="mh">Explore</div><div class="mgrid"><a href="#/" class="${activeKey === '' ? 'active' : ''}">🏠 Home</a><a href="#/playoffs" class="hot ${isAct('playoffs') ? 'active' : ''}">⚾ MLB Playoffs</a><a href="#/leagues" class="${isAct('leagues') ? 'active' : ''}">📊 Leagues</a><a href="#/year" class="${isAct('year') ? 'active' : ''}">🗓️ Year Explorer</a><a href="#/stadiums" class="${isAct('stadiums') ? 'active' : ''}">🏟️ Stadiums</a><a href="#/shop" class="${isAct('shop') ? 'active' : ''}">🛍️ Shop</a></div>`;
+  $('#nav').innerHTML = `<a href="#/" class="${activeKey === '' ? 'active' : ''}">Home</a>
+    <span class="sep"></span>${TEAM_KEYS.map(k => `<a href="#/team/${k}" class="${isAct('team/' + k) ? 'active' : ''}"><img src="${teamLogo(TEAMS[k])}" alt="">${TEAMS[k].nick}</a>`).join('')}
+    <a href="#/playoffs" class="hot ${isAct('playoffs') ? 'active' : ''}">MLB Playoffs</a>
+    <span class="sep"></span>${items.map(([p, label, img]) => `<a href="#/${p}" class="${isAct(p) ? 'active' : ''}">${img ? `<img src="${img}" alt="">` : ''}${label}</a>`).join('')}`;
 }
 
 /* ---------- Live score ticker (all pages) ---------- */

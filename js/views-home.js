@@ -130,6 +130,7 @@ async function viewHome({ mount, alive }) {
       $(`#hg-${k}`).innerHTML = (gs?.live ? chip('LIVE', gs.live) : chip('LAST', gs?.last)) + chip('NEXT', gs?.next) || '<span class="ht-g dim">No games scheduled</span>';
     });
     homeUpNext(stats);
+    homeUpcoming(stats);
     homeStandings(stats);
     $('#teamCards').innerHTML = stats.map(({ k, t, info, gs, pic }) => {
       const tot = totals[TEAM_KEYS.indexOf(k)];
