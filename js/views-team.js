@@ -6,8 +6,8 @@ const TAB_LIST = [
 const yearLabel = (t, y) => (t.league === 'nba' ? `${y - 1}–${String(y).slice(2)}` : String(y));
 
 async function viewTeam({ parts, q, mount, alive }) {
-  const key = parts[1], t = TEAMS[key], tab = TAB_LIST.some(x => x[0] === parts[2]) ? parts[2] : 'overview';
-  const tot = H.totals(key);
+  const key = parts[1], t = TEAMS[key], tabs = t.college ? COLLEGE_TABS : TAB_LIST, tab = tabs.some(x => x[0] === parts[2]) ? parts[2] : 'overview';
+  const tot = t.college ? null : H.totals(key);
   const existing = $('#teamHead')?.dataset.team === key && $('#tabBody');
   if (existing) {
     $$('#tabs a').forEach(a => a.classList.toggle('active', a.getAttribute('href') === `#/team/${key}/${tab}`));
@@ -19,10 +19,10 @@ async function viewTeam({ parts, q, mount, alive }) {
     <div class="team-head" id="teamHead" data-team="${key}">
       <img class="logo" src="${teamLogoOn(t)}" alt="${esc(t.name)}">
       <div class="meta"><div class="small muted" style="letter-spacing:.12em;text-transform:uppercase">${t.sportName} · Est. ${t.since}</div><h1>${esc(t.name)}</h1>
-        <div class="row small muted"><a class="leaguelink" href="#/league/${t.league}">${LEAGUES[t.league].short} standings &amp; leaders ›</a><span>🏆 ${tot.titles} titles</span><span>🏅 ${tot.finals + tot.titles} finals</span><span>📈 ${tot.w}-${tot.l}${tot.t ? '-' + tot.t : ''} all-time</span></div></div>
+        <div class="row small muted">${t.college ? `<a class="leaguelink" href="${esc(t.official)}" target="_blank" rel="noopener">IUHoosiers.com ↗</a><span>${esc(t.conf)}</span><span>Bloomington, Indiana</span>` : `<a class="leaguelink" href="#/league/${t.league}">${LEAGUES[t.league].short} standings &amp; leaders ›</a><span>🏆 ${tot.titles} titles</span><span>🏅 ${tot.finals + tot.titles} finals</span><span>📈 ${tot.w}-${tot.l}${tot.t ? '-' + tot.t : ''} all-time</span>`}</div></div>
       <div class="stats" id="headStats"></div>
     </div>
-    <div class="tabs" id="tabs">${TAB_LIST.map(([k, l]) => `${k === 'coaches' ? '<span class="tabsep">Club &amp; history</span>' : ''}<a href="#/team/${key}/${k}" class="${k === tab ? 'active' : ''}">${l}</a>`).join('')}</div>
+    <div class="tabs" id="tabs">${tabs.map(([k, l]) => `${k === 'coaches' ? '<span class="tabsep">Club &amp; history</span>' : ''}<a href="#/team/${key}/${k}" class="${k === tab ? 'active' : ''}">${l}</a>`).join('')}</div>
     <div id="tabBody">${spinner()}</div>`;
   safe(API.team(t)).then(info => {
     if (!alive() || !info) return;
@@ -30,7 +30,7 @@ async function viewTeam({ parts, q, mount, alive }) {
     $('#headStats').innerHTML = `<div class="big-stat"><div class="v">${has ? esc(info.summary) : '—'}</div><div class="l">Record</div></div>
       <div class="big-stat"><div class="v" style="font-size:1.4rem;padding-top:6px">${esc(info.standingSummary || '—')}</div><div class="l">Standing</div></div>`;
   });
-  const fn = { overview: tabOverview, picture: tabPicture, leaders: (tt, o) => API.leagueTable(tt.league).then(tb => leagueLeadersTab(tt.league, tb, o.mount, o.alive)), scores: (tt, o) => leagueNewsTab(tt.league, o.mount, o.alive), roster: tabRoster, depth: tabDepth, contracts: tabContracts, stats: tabStats, schedule: tabSchedule, coaches: tabCoaches, history: tabHistory, legends: tabLegends, stadium: tabStadium, shop: tabShop }[tab];
+  const fn = { overview: t.college ? tabCollegeOverview : tabOverview, picture: t.college ? tabCollegePicture : tabPicture, leaders: (tt, o) => API.leagueTable(tt.league).then(tb => leagueLeadersTab(tt.league, tb, o.mount, o.alive)), scores: (tt, o) => leagueNewsTab(tt.league, o.mount, o.alive), roster: tabRoster, depth: tabDepth, contracts: tabContracts, stats: tabStats, schedule: tabSchedule, coaches: tabCoaches, history: tabHistory, legends: tabLegends, stadium: tabStadium, shop: tabShop }[tab];
   await fn(t, { mount: $('#tabBody'), q, alive, key });
   if (alive()) $('#tabBody').style.minHeight = '';
   if (alive()) $('#tabBody').style.minHeight = '';
@@ -72,8 +72,11 @@ async function tabOverview(t, { mount, alive }) {
 
   safe(API.picture(t), null).then(pic => { if (alive()) $('#ovPicture').innerHTML = pic ? pictureCardHtml(pic, t) : '<h3>Playoff picture</h3><div class="muted small">Standings are not available right now.</div>'; });
   if (t.league === 'mlb') {
-    safe(API.mlbPostseason(), null).then(async ps => {
-      const mine = ps?.series?.find(s => s.involvesUs); if (!mine || !alive()) return;
+    // Offseason recap once the Phillies are done; the live-series banner only while they are still playing.
+    safe(API.picture(t), null).then(async pic => {
+      if (!alive() || !pic) return;
+      if (pic.offseason) { $('#ovPs').innerHTML = offseasonBannerHtml(pic, t); return; }
+      const ps = await safe(API.mlbPostseason(), null), mine = ps?.series?.find(s => s.involvesUs && !s.over); if (!mine || !alive()) return;
       await attachPostseasonOdds([mine]); if (!alive()) return;
       $('#ovPs').innerHTML = phillyPostseasonBannerHtml(mine);
     });
@@ -117,7 +120,7 @@ function outlookHtml(t, info, gs, roster, std) {
   const lastS = H.seasons(t.key).slice(-1)[0];
   if (played > 0) {
     const p = pct(info.w, info.l, info.tie), proj = Math.round(p * t.gamesInSeason);
-    rows.push(['Current pace', `${info.summary} (${fmtPct(p)}) — on pace for ≈ <b>${proj}</b> wins in ${t.gamesInSeason} games`]);
+    rows.push(played >= t.gamesInSeason ? ['Final record', `${info.summary} (${fmtPct(p)}) over ${played} regular-season games`] : ['Current pace', `${info.summary} (${fmtPct(p)}) — on pace for ≈ <b>${proj}</b> wins in ${t.gamesInSeason} games`]);
   } else rows.push(['Current pace', 'Season has not started — no games played yet.']);
   if (info?.standingSummary) rows.push(['Standing', esc(info.standingSummary)]);
   rows.push([`Last completed season (${H.label(t, lastS)})`, `${H.record(t, lastS)} · ${esc(H.outcome(lastS))}`]);
@@ -153,7 +156,7 @@ async function tabRoster(t, { mount, alive }) {
     { key: 'pos', label: 'Pos' }, { key: 'group', label: 'Unit', cls: 'muted' },
     { key: 'age', label: 'Age', num: true }, { key: 'height', label: 'Ht', num: true, sortVal: p => parseFloat((p.height || '').replace(/\D+/g, '.')) || 0 }, { key: 'weight', label: 'Wt', num: true, sortVal: p => parseInt(p.weight) || 0 },
     { key: 'exp', label: 'Exp', num: true, fmt: p => (p.exp == null ? '' : p.exp === 0 ? 'R' : p.exp) }, { key: 'college', label: 'College', cls: 'muted' },
-    ...(t.league !== 'mlb' ? [{ key: 'salary', label: 'Salary', num: true, fmt: p => (p.salary ? money(p.salary) : '—') }, { key: 'through', label: 'Thru', num: true, fmt: p => p.through || (p.contracts.length ? Math.max(...p.contracts.filter(c => c.salary > 0).map(c => c.year), 0) || '' : '') }] : []),
+    ...(t.league !== 'mlb' && !t.college ? [{ key: 'salary', label: 'Salary', num: true, fmt: p => (p.salary ? money(p.salary) : '—') }, { key: 'through', label: 'Thru', num: true, fmt: p => p.through || (p.contracts.length ? Math.max(...p.contracts.filter(c => c.salary > 0).map(c => c.year), 0) || '' : '') }] : []),
     { key: 'status', label: 'Status', fmt: p => (p.injuries.length ? `<span class="badge bad">${esc(p.injuries[0].status)}</span>` : p.status !== 'Active' ? `<span class="badge">${esc(p.status)}</span>` : '') },
   ];
   const draw = () => {
@@ -306,7 +309,7 @@ async function tabSchedule(t, { mount, alive, q }) {
       { key: 'ts', label: 'Date', sortVal: g => g.ts, fmt: g => `<span>${esc(fmtDate(g.date, { month: 'short', day: 'numeric', year: 'numeric' }))}</span>` },
       { key: 'label', label: 'Round', cls: 'muted', fmt: g => esc(g.label) },
       { key: 'opp', label: 'Opponent', sortVal: g => g.opp.name, fmt: g => `<div class="pname" data-teamcard="${t.league}|${g.opp.id}" style="cursor:pointer"><span class="dim" style="min-width:22px">${g.home ? 'vs' : '@'}</span><img src="${esc(g.opp.logo)}" style="border-radius:0;background:none;width:24px;height:24px;object-fit:contain" alt="" loading="lazy" onerror="this.style.visibility='hidden'">${esc(g.opp.name)}</div>` },
-      { key: 'result', label: 'Result', fmt: g => (g.state === 'post' ? `${resultChip(g)} <span class="dim small">Box score ›</span>` : g.state === 'in' ? `<span class="badge live">${esc(g.detail)}</span> ${g.ourScore ?? 0}–${g.oppScore ?? 0}` : `<span class="muted">${esc(fmtTime(g.date))}</span>`) },
+      { key: 'result', label: 'Result', fmt: g => (g.state === 'post' ? `${resultChip(g)} <span class="dim small">Box score ›</span>` : g.state === 'in' ? `<span class="badge live">${esc(g.detail)}</span> ${g.ourScore ?? 0}–${g.oppScore ?? 0}` : `<span class="muted">${g.tbd ? 'TBD' : esc(fmtTime(g.date))}</span>`) },
       { key: 'rec', label: 'Record', num: true, sortVal: g => g.ts, fmt: g => esc(recMap.get(g.id) || '') },
       { key: 'tv', label: 'TV', cls: 'muted', fmt: g => esc(g.tv || '') },
       { key: 'venue', label: 'Venue', cls: 'muted', fmt: g => esc(g.venue || '') },

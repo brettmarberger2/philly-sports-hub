@@ -29,6 +29,8 @@ async function getJSON(url, ttl = 120, opts = {}) {
   return p;
 }
 const safe = (p, fallback = null) => p.catch(e => { console.warn(e); return fallback; });
+/** Resolve to `fallback` if `p` takes longer than `ms`, so one slow feed can't hold up a whole page. */
+const timeout = (p, ms, fallback = null) => Promise.race([p, new Promise(r => setTimeout(() => r(fallback), ms))]);
 
 const money = n => {
   if (n == null || isNaN(n)) return '—';

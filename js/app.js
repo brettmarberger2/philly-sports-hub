@@ -14,17 +14,24 @@ function setTheme(key) {
   else { r.style.removeProperty('--team'); r.style.removeProperty('--team2'); r.style.removeProperty('--accent'); delete r.dataset.team; }
 }
 
+const NAV_LABEL = { eagles: 'Eagles', sixers: '76ers', iufb: 'IU Football', iubb: 'IU Basketball', phillies: 'Phillies' };
+const MORE_ITEMS = [['history', '📜 History'], ['year', '🗓️ Year Explorer'], ['stadiums', '🏟️ Stadiums'], ['shop', '🛍️ Shop']];
 function renderNav(activeKey) {
-  const items = [
-    ['leagues', 'Leagues', null], ['history', 'History', null], ['year', 'Year Explorer', null], ['stadiums', 'Stadiums', null], ['shop', 'Shop', null],
-  ];
   const isAct = p => activeKey === p || (p && activeKey.startsWith(p) && p !== '');
-  $('#mmenu').innerHTML = `<div class="mh">Teams</div><div class="mgrid">${TEAM_KEYS.map(k => `<a href="#/team/${k}" class="${isAct('team/' + k) ? 'active' : ''}"><img src="${teamLogo(TEAMS[k])}" alt="">${TEAMS[k].nick}</a>`).join('')}<a href="#/history" class="${isAct('history') ? 'active' : ''}">📜 History</a></div><div class="mh">Explore</div><div class="mgrid"><a href="#/" class="${activeKey === '' ? 'active' : ''}">🏠 Home</a><a href="#/playoffs" class="hot ${isAct('playoffs') ? 'active' : ''}"><span class="livedot"></span> MLB Playoffs</a><a href="#/leagues" class="${isAct('leagues') ? 'active' : ''}">📊 Leagues</a><a href="#/year" class="${isAct('year') ? 'active' : ''}">🗓️ Year Explorer</a><a href="#/stadiums" class="${isAct('stadiums') ? 'active' : ''}">🏟️ Stadiums</a><a href="#/shop" class="${isAct('shop') ? 'active' : ''}">🛍️ Shop</a></div>`;
+  const moreOn = MORE_ITEMS.some(([p]) => isAct(p));
+  $('#mmenu').innerHTML = `<div class="mh">Teams</div><div class="mgrid">${LIVE_KEYS.map(k => `<a href="#/team/${k}" class="${isAct('team/' + k) ? 'active' : ''}"><img src="${teamLogo(TEAMS[k])}" alt="">${NAV_LABEL[k]}</a>`).join('')}</div><div class="mh">Explore</div><div class="mgrid"><a href="#/" class="${activeKey === '' ? 'active' : ''}">🏠 Home</a><a href="javascript:void(0)" data-qv class="hot">⚡ Game day</a><a href="#/leagues" class="${isAct('leagues') ? 'active' : ''}">📊 Leagues</a>${MORE_ITEMS.map(([p, l]) => `<a href="#/${p}" class="${isAct(p) ? 'active' : ''}">${l}</a>`).join('')}</div>`;
   $('#nav').innerHTML = `<a href="#/" class="${activeKey === '' ? 'active' : ''}">Home</a>
-    <span class="sep"></span>${TEAM_KEYS.map(k => `<a href="#/team/${k}" class="${isAct('team/' + k) ? 'active' : ''}"><img src="${teamLogo(TEAMS[k])}" alt="">${TEAMS[k].nick}</a>`).join('')}
-    <span class="sep"></span><a href="#/playoffs" class="hot ${isAct('playoffs') ? 'active' : ''}"><span class="livedot"></span> MLB Playoffs</a>
-    <span class="sep"></span>${items.map(([p, label, img]) => `<a href="#/${p}" class="${isAct(p) ? 'active' : ''}">${img ? `<img src="${img}" alt="">` : ''}${label}</a>`).join('')}`;
+    <span class="sep"></span>${LIVE_KEYS.map(k => `<a href="#/team/${k}" class="${isAct('team/' + k) ? 'active' : ''}"><img src="${teamLogo(TEAMS[k])}" alt="">${NAV_LABEL[k]}</a>`).join('')}
+    <span class="sep"></span><a href="#/leagues" class="${isAct('leagues') ? 'active' : ''}">Leagues</a><button type="button" class="morebtn ${moreOn ? 'active' : ''}" id="moreBtn" aria-haspopup="true" aria-expanded="false">More ▾</button>`;
+  $('#moreMenu').innerHTML = MORE_ITEMS.map(([p, l]) => `<a href="#/${p}" class="${isAct(p) ? 'active' : ''}">${l}</a>`).join('');
 }
+/* "More" menu is a fixed-position popover so the scrolling nav bar can't clip it. */
+function setMore(open) {
+  const m = $('#moreMenu'), b = $('#moreBtn'); if (!m || !b) return;
+  m.hidden = !open; b.setAttribute('aria-expanded', open ? 'true' : 'false');
+  if (open) { const r = b.getBoundingClientRect(); m.style.top = `${r.bottom + 6}px`; m.style.left = `${Math.max(8, Math.min(r.left, innerWidth - 200))}px`; }
+}
+document.addEventListener('click', e => { if (e.target.closest('#moreBtn')) setMore($('#moreMenu').hidden); else if (!$('#moreMenu').hidden) setMore(false); });
 
 /* ---------- Live score ticker (all pages) ---------- */
 function tickerItem(t, rg) {
@@ -37,7 +44,7 @@ function tickerItem(t, rg) {
   return `<a class="tk" href="${tg ? 'javascript:void(0)' : '#/team/' + t.key + '/schedule'}" ${tg ? `data-game="${gameRef(t, tg)}"` : ''}><img src="${teamLogo(t)}" alt=""><div><div class="l1"><span>${esc(t.nick)}</span> ${first}</div>${second ? `<div class="l2">${second}</div>` : ''}</div></a>`;
 }
 async function renderTicker() {
-  const res = await Promise.all(TEAM_KEYS.map(async k => ({ t: TEAMS[k], rg: await safe(API.recentGames(TEAMS[k], 2), null) })));
+  const res = await Promise.all(FOCUS_KEYS.map(async k => ({ t: TEAMS[k], rg: await safe(API.recentGames(TEAMS[k], 2), null) })));
   $('#ticker .ticker-inner').innerHTML = `<div class="ticker-label"><span class="livedot"></span> Latest</div>${res.map(r => tickerItem(r.t, r.rg)).join('')}`;
 }
 

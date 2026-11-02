@@ -778,3 +778,43 @@ table.linescore th, table.linescore td { padding: 8px 10px; } table.linescore .t
 .brk-ws-col .brk-m::before, .brk-ws-col .brk-m::after { content: ''; position: absolute; top: 50%; width: 22px; height: 2px; background: var(--dim); }
 .brk-ws-col .brk-m::before { left: -22px; } .brk-ws-col .brk-m::after { right: -22px; }
 @media (max-width: 620px) { .brk-card { padding: 18px 14px; } .brk-col, .brk-ws-col { width: 152px; } .brk-t { font-size: .72rem; grid-template-columns: 18px 16px minmax(0,1fr) auto; } .brk-legend { gap: 10px 16px; font-size: .72rem; } }
+
+/* ---------- v16: focus on Eagles / 76ers / Hoosiers, Game day pop-up, nav ---------- */
+.qvbtn { width: auto; padding: 0 12px; display: inline-flex; align-items: center; gap: 6px; font-weight: 800; font-size: .84rem; white-space: nowrap; background: var(--ink); color: #fff; border-color: transparent; }
+.qvbtn:hover { background: color-mix(in srgb, var(--ink) 85%, #fff); }
+.morebtn { background: none; border: 0; font: inherit; font-weight: 700; font-size: .92rem; color: var(--muted); padding: 9px 12px; border-radius: 8px; cursor: pointer; white-space: nowrap; flex: none; }
+.morebtn:hover, .morebtn.active { color: var(--text); background: var(--card2); }
+.moremenu { position: fixed; z-index: 90; min-width: 190px; background: var(--card); border: 1px solid var(--line); border-radius: 12px; box-shadow: var(--shadow-lg); padding: 6px; display: flex; flex-direction: column; }
+.moremenu[hidden] { display: none; }
+.moremenu a { padding: 10px 12px; border-radius: 8px; color: var(--text); font-weight: 700; font-size: .9rem; } .moremenu a:hover { background: var(--card2); text-decoration: none; } .moremenu a.active { background: var(--card2); color: var(--accent); }
+.nav a { flex: none; }
+@media (max-width: 1380px) { .nav a { padding: 9px 9px; font-size: .86rem; gap: 5px; } .nav a img { width: 20px; height: 20px; } .nav .sep { margin: 0 2px; } .brand { font-size: 1.45rem; } .topbar-inner { gap: 14px; } }
+@media (max-width: 1180px) { .qvbtn span { display: none; } .qvbtn { width: 38px; padding: 0; justify-content: center; } }
+.mmenu a.hot { background: var(--ink); color: #fff; border-color: transparent; }
+.bnav a.qv { color: #fff; background: var(--ink); } .bnav a.qv .qvi { font-size: 1.25rem; line-height: 24px; height: 24px; }
+@media (max-width: 960px) { .bnav { grid-template-columns: repeat(6, 1fr); } .qvbtn { display: none; } }
+/* offseason Phillies tile on the home hero: just the headline, no game chips */
+.hero-tile.off .ht-games { display: none; } .hero-tile.off { opacity: .92; } .hero-tile.off .ht-top { padding-bottom: 14px; }
+/* Game day pop-up */
+.qv-head { padding: 24px 28px 18px; background: linear-gradient(120deg, #0b1a30, #1f2a3d); color: #fff; } .qv-head h2 { margin: 2px 0 0; font-size: 2rem; color: #fff; }
+.qv { padding-top: 16px; }
+.qv-seg { margin-bottom: 14px; max-width: 100%; } .qv-seg button img { width: 20px; height: 20px; object-fit: contain; }
+.qv-team { display: flex; align-items: center; gap: 14px; padding: 14px 16px; border-radius: 16px; color: #fff; background: linear-gradient(120deg, var(--team), color-mix(in srgb, var(--team) 60%, #000)); }
+.qv-team img { width: 52px; height: 52px; object-fit: contain; flex: none; } .qv-team > div:nth-child(2) { min-width: 0; flex: 1; }
+.qv-team .nm { font-family: var(--display); font-size: 1.5rem; font-weight: 800; text-transform: uppercase; line-height: 1.05; } .qv-team .small { opacity: .9; }
+.qv-team .rc { font-family: var(--display); font-size: 2rem; font-weight: 800; text-align: right; line-height: 1; } .qv-team .rc small { display: block; font-family: var(--font); font-size: .62rem; opacity: .8; letter-spacing: .08em; text-transform: uppercase; }
+.qv-status { display: flex; flex-direction: column; gap: 2px; margin-top: 10px; padding: 10px 14px; border-radius: 12px; background: var(--bg2); border-left: 4px solid var(--dim); } .qv-status span { font-size: .84rem; color: var(--muted); }
+.qv-status.tone-in { border-left-color: var(--good); } .qv-status.tone-bubble { border-left-color: var(--warn); } .qv-status.tone-out { border-left-color: var(--bad); }
+.qv-game { display: block; margin-top: 12px; padding: 14px 16px; border: 1px solid var(--line); border-radius: 16px; background: var(--card); color: var(--text); } a.qv-game:hover { text-decoration: none; border-color: var(--team); }
+.qv-game.flat { background: var(--bg2); }
+.qv-lab { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; font-size: .8rem; color: var(--muted); font-weight: 700; margin-bottom: 8px; }
+.qv-tag { background: var(--gold); color: #1a1200; font-weight: 800; font-size: .66rem; letter-spacing: .08em; text-transform: uppercase; padding: 3px 9px; border-radius: 99px; }
+.qv-vs { display: flex; align-items: center; gap: 12px; font-family: var(--display); font-size: 1.7rem; font-weight: 800; margin-bottom: 4px; } .qv-vs img { width: 38px; height: 38px; object-fit: contain; } .qv-vs span { font-size: 1rem; color: var(--muted); font-family: var(--font); }
+.qv-odds { margin-top: 10px; }
+.qv-cols { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; margin-top: 12px; }
+.qv-h { margin: 16px 0 6px; font-size: .74rem; font-weight: 800; text-transform: uppercase; letter-spacing: .09em; color: var(--muted); } .qv-cols .qv-h { margin-top: 0; }
+.qv-last { display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; margin-top: 12px; padding: 10px 14px; border-radius: 12px; background: var(--bg2); color: var(--text); font-size: .95rem; } .qv-last:hover { text-decoration: none; background: var(--card2); }
+.qv-mini { margin-bottom: 4px; }
+@media (max-width: 620px) { .qv-head { padding: 20px 18px 14px; } .qv-head h2 { font-size: 1.6rem; } .qv-cols { grid-template-columns: 1fr; } .qv-team .nm { font-size: 1.2rem; } .qv-vs { font-size: 1.35rem; } }
+/* Between phone and wide desktop the five team links + More need the room the wordmark takes up. */
+@media (min-width: 961px) and (max-width: 1180px) { .brand span.t { display: none; } .nav a { padding: 9px 8px; } }

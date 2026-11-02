@@ -55,20 +55,23 @@ async function fillPreview(g) {
     if (g.leaders.length) html += `<h3 class="pvt">Season leaders</h3>` + two(t => { const l = g.leaders.find(x => x.id === t.id); return l ? l.items.map(x => `<div class="pvrow"><span class="muted">${esc(x.cat)}</span><span><b>${esc(x.name)}</b> ${esc(x.value)}</span></div>`).join('') : ''; });
     // projected starters from each team's depth chart
     const depths = await Promise.all(g.teams.map(t => safe(API.depth({ sport: SPORT_OF[lg], league: lg, espnId: t.id }), null))); if (!box()) return;
-    const starters = d => {
-      if (!d?.charts?.length) return [];
-      if (lg === 'nba') return d.charts[0].rows.map(r => [r.abbr, r.players[0]?.name]);
-      const off = d.charts.find(c => /WR|TE|RB/.test(c.name)) || d.charts[0];
-      const def = d.charts.find(c => /D\b|Def|3-4|4-3|Nickel/i.test(c.name) && c !== off);
-      const pick = (c, keys) => c ? c.rows.filter(r => keys.includes(r.abbr)).map(r => [r.abbr, r.players[0]?.name]) : [];
-      return [...pick(off, ['QB', 'RB', 'WR', 'TE']), ...pick(def, ['LDE', 'RDE', 'DE', 'EDGE', 'DT', 'NT', 'WLB', 'MLB', 'LILB', 'RILB', 'SLB', 'LCB', 'RCB', 'CB', 'SS', 'FS'])].slice(0, 14);
-    };
+    const starters = d => depthStarters(lg, d);
     html += `<h3 class="pvt">Projected starters</h3><p class="small muted" style="margin:-4px 0 8px">From each team's current depth chart.</p>` + two(t => { const s = starters(depths[g.teams.indexOf(t)]); return s.length ? s.map(([pos, n]) => `<div class="pvrow"><span class="muted">${esc(pos)}</span><b>${esc(n || '—')}</b></div>`).join('') : '<div class="muted small">Not published.</div>'; });
     if (Object.keys(g.injuries).length) html += `<h3 class="pvt">Injury report</h3>` + two(t => { const inj = (g.injuries[t.id] || []).filter(i => !/^Active$/i.test(i.status)); return inj.length ? inj.slice(0, 10).map(i => `<div class="pvrow"><span><b>${esc(i.name)}</b> <span class="dim small">${esc(i.pos)}</span></span><span class="badge ${/out|reserve/i.test(i.status) ? 'bad' : ''}">${esc(i.status)}${i.type ? ' · ' + esc(i.type) : ''}</span></div>`).join('') : '<div class="muted small">No injuries listed.</div>'; });
     if (g.teamStats.length) html += `<h3 class="pvt">Season stats</h3><div class="table-wrap"><table class="data"><thead><tr><th class="stk"></th>${g.teams.map(t => `<th class="num">${esc(t.abbr)}</th>`).join('')}</tr></thead><tbody>${g.teamStats.slice(0, 14).map(s => `<tr><td class="stk muted">${esc(s.label)}</td>${s.vals.map(v => `<td class="num"><b>${esc(v)}</b></td>`).join('')}</tr>`).join('')}</tbody></table></div>`;
     if (Object.keys(g.last5).length) html += `<h3 class="pvt">Last five games</h3>` + two(t => (g.last5[t.id] || []).map(e => `<div class="pvrow"><span class="muted">${esc(e.at)} ${esc(e.opp)}</span><b class="${e.res === 'W' ? 'win' : e.res === 'L' ? 'loss' : ''}">${esc(e.res || '')} ${esc(e.score || '')}</b></div>`).join('') || '<div class="muted small">—</div>');
   }
   if (box()) box().innerHTML = html || '<div class="muted small">No preview details yet.</div>';
+}
+
+/** Projected starters ([position, name] pairs) from an ESPN depth chart. Basketball: the whole first unit; football: skill positions + front seven + secondary. */
+function depthStarters(lg, d) {
+  if (!d?.charts?.length) return [];
+  if (/basketball|nba/.test(SPORT_OF[lg] || lg)) return d.charts[0].rows.map(r => [r.abbr, r.players[0]?.name]);
+  const off = d.charts.find(c => /WR|TE|RB/.test(c.name)) || d.charts[0];
+  const def = d.charts.find(c => /D\b|Def|3-4|4-3|Nickel/i.test(c.name) && c !== off);
+  const pick = (c, keys) => c ? c.rows.filter(r => keys.includes(r.abbr)).map(r => [r.abbr, r.players[0]?.name]) : [];
+  return [...pick(off, ['QB', 'RB', 'WR', 'TE']), ...pick(def, ['LDE', 'RDE', 'DE', 'EDGE', 'DT', 'NT', 'WLB', 'MLB', 'LILB', 'RILB', 'SLB', 'LCB', 'RCB', 'CB', 'SS', 'FS'])].slice(0, 14);
 }
 
 /** One-line preview for home/overview "next game" cards. */
@@ -97,6 +100,7 @@ document.addEventListener('click', e => {
   const c = e.target.closest('[data-teamcard]'); if (!c) return;
   e.preventDefault(); e.stopPropagation();
   const [lg, id] = c.dataset.teamcard.split('|');
+  if (!LEAGUE_KEYS.includes(lg)) { if (String(id) === PHILLY_ID[lg]) { closeModal(); location.hash = `#/team/${LEAGUES[lg].team}`; } return; }
   if (String(id) === PHILLY_ID[lg]) { closeModal(); location.hash = `#/team/${LEAGUES[lg].team}`; return; }
   openTeamCard(lg, id);
 }, true);

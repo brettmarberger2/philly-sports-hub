@@ -6,7 +6,12 @@ const LEAGUES = {
   nfl: { key: 'nfl', name: 'National Football League', short: 'NFL', team: 'eagles', sub: 'AFC & NFC' },
   nba: { key: 'nba', name: 'National Basketball Association', short: 'NBA', team: 'sixers', sub: 'Eastern & Western Conference' },
 };
-const LEAGUE_KEYS = ['mlb', 'nfl', 'nba'];
+/* College leagues are lookup-only (game pop-ups, team pages): no league table or leaderboards behind them. */
+Object.assign(LEAGUES, {
+  'college-football': { key: 'college-football', name: 'NCAA Football', short: 'CFB', team: 'iufb', sub: 'Big Ten · FBS' },
+  'mens-college-basketball': { key: 'mens-college-basketball', name: "NCAA Men's Basketball", short: 'CBB', team: 'iubb', sub: 'Big Ten · Division I' },
+});
+const LEAGUE_KEYS = ['nfl', 'nba', 'mlb'];
 const gbFrom = (lead, t) => ((lead.w - t.w) + (t.l - lead.l)) / 2;
 const fmtGB = g => (g === 0 || g == null ? '—' : Number.isInteger(g) ? String(g) : g.toFixed(1));
 const wl = (t, team) => (team?.recordFmt === 'wlt' && t.t ? `${t.w}-${t.l}-${t.t}` : `${t.w}-${t.l}`);

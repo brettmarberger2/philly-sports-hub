@@ -1,7 +1,7 @@
 /* Helpers over the baked historical data (window.HIST) + curated notes (window.CUR) */
 const H = {
   _cache: {},
-  seasons(key) { return (this._cache[key] ||= [...HIST[key]].sort((a, b) => a.year - b.year)); },
+  seasons(key) { return (this._cache[key] ||= [...(HIST[key] || [])].sort((a, b) => a.year - b.year)); },
   find(key, year) { return this.seasons(key).find(s => s.year === +year); },
   champ(t, year) { return HIST.champs[t.champKey]?.[String(year)] || null; },
   years() { const all = TEAM_KEYS.flatMap(k => this.seasons(k).map(s => s.year)); return { min: Math.min(...all), max: Math.max(...all) }; },

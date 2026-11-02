@@ -26,7 +26,7 @@ const API = {
     if (state === 'post' && a != null && b != null) result = a > b ? 'W' : a < b ? 'L' : 'T';
     const tn = them.team || {};
     return {
-      id: ev.id, ts: new Date(ev.date).getTime(), date: ev.date, home: us.homeAway === 'home', neutral: !!c.neutralSite,
+      id: ev.id, ts: new Date(ev.date).getTime(), date: c.timeValid === false ? new Date(new Date(ev.date).getTime() - 5 * 3600e3).toISOString().slice(0, 10) + 'T17:00:00Z' : ev.date, tbd: c.timeValid === false, home: us.homeAway === 'home', neutral: !!c.neutralSite,
       opp: { id: tn.id, name: tn.displayName || tn.name, short: tn.shortDisplayName || tn.name, abbr: tn.abbreviation, logo: tn.logos?.[0]?.href || (tn.abbreviation ? teamLogo(t, tn.abbreviation) : '') },
       ourScore: a, oppScore: b, result, state, detail: st.shortDetail || st.detail || '', completed: !!st.completed,
       label: ev.week?.text || (ev.seasonType?.type === 3 ? ev.competitions[0].notes?.[0]?.headline || 'Postseason' : ev.seasonType?.name) || '',

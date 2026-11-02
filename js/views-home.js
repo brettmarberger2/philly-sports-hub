@@ -15,7 +15,7 @@ function gameBox(t, g, label) {
   const [away, home] = g.home ? [opSide, meSide] : [meSide, opSide];
   const side = (s, isRight) => `<div class="side" style="${isRight ? 'flex-direction:row-reverse' : ''}"><img src="${esc(s.logo)}" alt="" onerror="this.style.visibility='hidden'"><span>${esc(s.abbr)}</span></div>`;
   const mid = (live || done) ? `<div class="score">${away.score ?? 0} – ${home.score ?? 0}</div>` : `<div class="muted small center">${g.home ? 'vs' : '@'}</div>`;
-  const badge = live ? `<span class="badge live">Live · ${esc(g.detail)}</span>` : done ? `<span class="badge ${g.result === 'W' ? 'good' : g.result === 'L' ? 'bad' : ''}">Final · ${g.result}</span>` : `<span class="badge">${esc(fmtDay(g.date))} · ${esc(fmtTime(g.date))}</span>`;
+  const badge = live ? `<span class="badge live">Live · ${esc(g.detail)}</span>` : done ? `<span class="badge ${g.result === 'W' ? 'good' : g.result === 'L' ? 'bad' : ''}">Final · ${g.result}</span>` : `<span class="badge">${esc(fmtDay(g.date))} · ${g.tbd ? 'Time TBD' : esc(fmtTime(g.date))}</span>`;
   const meta = [g.label, g.tv, g.venue].filter(Boolean).join(' · ');
   return `<a class="gamebox" style="display:block;color:inherit" href="javascript:void(0)" data-game="${gameRef(t, g)}">
     <div class="lab"><span>${label}${g.label ? ' · ' + esc(g.label) : ''}</span>${badge}</div>
@@ -35,17 +35,17 @@ function bannerWall(key, { compact = false } = {}) {
 }
 
 async function viewHome({ mount, alive }) {
-  const totals = TEAM_KEYS.map(k => H.totals(k));
-  const allTitles = sum(totals, x => x.titles);
+  const totalsByKey = Object.fromEntries(TEAM_KEYS.map(k => [k, H.totals(k)]));
   const yr = H.years();
   mount.innerHTML = `
     <section class="hero big"><div class="hero-grid">
       <div>
         <div class="tri"><span></span><span></span><span></span></div>
         <h1>Philly sports,<br><em>right now.</em></h1>
-        <p class="lede">Live scores, what's next, standings, playoff races, stats and news for the Eagles, Phillies and 76ers. Plus every season since ${yr.min}.</p>
+        <p class="lede">Game days, odds, lineups, standings and news for the Eagles and 76ers, plus Indiana football and basketball. The Phillies are in the offseason. Every season since ${yr.min} is in the history section.</p>
         <div class="herobtns">
-          <a class="btn primary" style="--team:#0b1a30" href="javascript:void(0)" data-jump="gd">🔴 Scores &amp; next games</a>
+          <a class="btn primary" style="--team:#0b1a30" href="javascript:void(0)" data-qv>⚡ Game day</a>
+          <a class="btn" href="javascript:void(0)" data-jump="gd">Scores &amp; next games</a>
           <a class="btn" href="javascript:void(0)" data-jump="st">Standings &amp; playoffs</a>
           <a class="btn" href="javascript:void(0)" data-jump="ld">League leaders</a>
           <a class="btn" href="javascript:void(0)" data-jump="nw">Headlines</a>
@@ -54,13 +54,13 @@ async function viewHome({ mount, alive }) {
         </div>
         <form class="yearjump" id="yjForm" style="margin-top:14px" autocomplete="off"><input type="number" id="yjIn" inputmode="numeric" min="${yr.min}" max="${new Date().getFullYear()}" placeholder="Jump to any year" aria-label="Jump to a year"><button type="submit">Jump →</button></form>
       </div>
-      <div class="hero-tiles now-tiles" id="heroTiles">${TEAM_KEYS.map(k => `<div class="hero-tile" style="--c1:${TEAMS[k].primary}"><a class="ht-top" href="#/team/${k}"><img src="${teamLogoOn(TEAMS[k])}" alt=""><div><div class="nm">${TEAMS[k].nick}</div><div class="sub" id="hs-${k}">${TEAMS[k].sportName}</div></div><div class="rc">—<small>Record</small></div></a><div class="ht-games" id="hg-${k}"><span class="ht-g dim">Loading games…</span></div></div>`).join('')}</div>
+      <div class="hero-tiles now-tiles" id="heroTiles">${LIVE_KEYS.map(k => `<div class="hero-tile" id="ht-${k}" style="--c1:${TEAMS[k].primary}"><a class="ht-top" href="#/team/${k}"><img src="${teamLogoOn(TEAMS[k])}" alt=""><div><div class="nm">${TEAMS[k].nick}</div><div class="sub" id="hs-${k}">${TEAMS[k].sportName}</div></div><div class="rc">—<small>Record</small></div></a><div class="ht-games" id="hg-${k}"><span class="ht-g dim">Loading games…</span></div></div>`).join('')}</div>
     </div></section>
     <div id="upNext"></div>
     <div id="liveStrip"></div>
-    <section class="section" id="gd"><h2>Game day</h2><div class="grid g3" id="teamCards">${TEAM_KEYS.map(k => `<div class="card">${spinner()}</div>`).join('')}</div></section>
+    <section class="section" id="gd"><h2>Game day</h2><div class="grid g3" id="teamCards">${LIVE_KEYS.map(k => `<div class="card">${spinner()}</div>`).join('')}</div></section>
     <section class="section" id="up"><h2>Coming up</h2><div class="card" id="upcoming">${spinner('Loading schedules…')}</div></section>
-    <section class="section" id="st"><h2>Standings</h2><p class="section-sub">Where each team sits right now. Tap a card for the full playoff picture and every division.</p><div class="grid g3" id="stdSnap">${TEAM_KEYS.map(() => `<div class="card">${spinner()}</div>`).join('')}</div></section>
+    <section class="section" id="st"><h2>Standings</h2><p class="section-sub">Where each team sits right now. Tap a card for the full playoff picture and every division.</p><div class="grid g3" id="stdSnap">${LIVE_KEYS.map(() => `<div class="card">${spinner()}</div>`).join('')}</div></section>
     <section class="section" id="ld"><h2>League leaders</h2><p class="section-sub">The top of each league, with Philly players highlighted. Tap any list for the full leaderboard.</p><div id="ldSnap">${spinner('Loading leaders…')}</div></section>
     <section class="section" id="nw"><h2>Headlines</h2><div id="homeNews">${spinner('Loading headlines…')}</div></section>
 
@@ -116,9 +116,9 @@ async function viewHome({ mount, alive }) {
   });
   phillySkyline().then(url => { if (!alive() || !url) return; const h = $('.hero'); h.style.setProperty('--skyline', `url('${url}')`); h.classList.add('photo'); });
   const draw = async () => {
-    const stats = await Promise.all(TEAM_KEYS.map(async k => {
+    const stats = await Promise.all(LIVE_KEYS.map(async k => {
       const t = TEAMS[k];
-      const [info, gs, pic] = await Promise.all([safe(API.team(t)), safe(API.gameStatus(t)), safe(API.picture(t), null)]);
+      const [info, gs, pic] = await Promise.all([timeout(safe(API.team(t)), 8000), timeout(safe(API.gameStatus(t)), 8000), timeout(safe(API.picture(t), null), 8000)]);
       return { k, t, info, gs, pic };
     }));
     if (!alive()) return;
@@ -126,24 +126,25 @@ async function viewHome({ mount, alive }) {
       const { info: inf, pic, k, t, gs } = stats[i];
       el.querySelector('.rc').innerHTML = `${inf && (inf.w + inf.l + inf.tie) > 0 ? esc(inf.summary) : '—'}<small>${esc(inf?.standingSummary || 'Record')}</small>`;
       if (pic) $(`#hs-${k}`).textContent = pic.statusShort;
-      const chip = (lab, g) => (g ? `<a class="ht-g" href="javascript:void(0)" data-game="${gameRef(t, g)}"><span class="l">${lab}</span>${g.state === 'in' ? `<b>${g.ourScore ?? 0}–${g.oppScore ?? 0}</b> ${g.home ? 'vs' : '@'} ${esc(g.opp.abbr || g.opp.short)} <span class="lv">${esc(g.detail)}</span>` : g.state === 'post' ? `<b class="${g.result === 'W' ? 'w' : 'l'}">${g.result} ${g.ourScore}–${g.oppScore}</b> ${g.home ? 'vs' : '@'} ${esc(g.opp.abbr || g.opp.short)}` : `${g.home ? 'vs' : '@'} ${esc(g.opp.abbr || g.opp.short)} · ${esc(whenShort(g.date))}`}</a>` : '');
+      el.classList.toggle('off', !!pic?.offseason);
+      const chip = (lab, g) => (g ? `<a class="ht-g" href="javascript:void(0)" data-game="${gameRef(t, g)}"><span class="l">${lab}</span>${g.state === 'in' ? `<b>${g.ourScore ?? 0}–${g.oppScore ?? 0}</b> ${g.home ? 'vs' : '@'} ${esc(g.opp.abbr || g.opp.short)} <span class="lv">${esc(g.detail)}</span>` : g.state === 'post' ? `<b class="${g.result === 'W' ? 'w' : 'l'}">${g.result} ${g.ourScore}–${g.oppScore}</b> ${g.home ? 'vs' : '@'} ${esc(g.opp.abbr || g.opp.short)}` : `${g.home ? 'vs' : '@'} ${esc(g.opp.abbr || g.opp.short)} · ${esc(whenShort(g.date, g.tbd))}`}</a>` : '');
       $(`#hg-${k}`).innerHTML = (gs?.live ? chip('LIVE', gs.live) : chip('LAST', gs?.last)) + chip('NEXT', gs?.next) || '<span class="ht-g dim">No games scheduled</span>';
     });
     homeUpNext(stats);
     homeUpcoming(stats);
     homeStandings(stats);
     $('#teamCards').innerHTML = stats.map(({ k, t, info, gs, pic }) => {
-      const tot = totals[TEAM_KEYS.indexOf(k)];
+      const tot = totalsByKey[k];
       const hasRec = info && (info.w + info.l + info.tie) > 0;
       return `<div class="team-card" style="--c1:${t.primary}">
-        <a class="top" href="#/team/${k}"><img src="${teamLogoOn(t)}" alt=""><div><div class="small" style="color:#ffffffb0;letter-spacing:.1em;text-transform:uppercase">${t.sportName} · ${t.since}–present</div><h3>${t.nick}</h3>
+        <a class="top" href="#/team/${k}"><img src="${teamLogoOn(t)}" alt=""><div><div class="small" style="color:#ffffffb0;letter-spacing:.1em;text-transform:uppercase">${t.sportName}${t.college ? ` · ${t.conf}` : ` · ${t.since}–present`}${pic?.offseason ? ' · Offseason' : ''}</div><h3>${t.nick}</h3>
           <div class="rec">${hasRec ? esc(info.summary) : '—'}</div><div class="small" style="color:#ffffffd0">${esc(info?.standingSummary || 'Offseason')}</div></div></a>
         <div class="body">
-          ${pic ? `<a class="pstrip tone-${pic.tone}" href="#/team/${k}/picture"><span class="pl">${pic.kind === 'nba' && pic.fin ? 'LAST SEASON' : 'PLAYOFF PICTURE'}</span><b>${esc(pic.headline)}</b><span class="ps">${esc(pic.sub)}</span></a>` : ''}
+          ${pic ? `<a class="pstrip tone-${pic.tone}" href="#/team/${k}/picture"><span class="pl">${pic.offseason ? 'SEASON RECAP' : pic.college ? 'RANKINGS' : pic.kind === 'nba' && pic.fin ? 'LAST SEASON' : 'PLAYOFF PICTURE'}</span><b>${esc(pic.headline)}</b><span class="ps">${esc(pic.sub)}</span></a>` : ''}
           ${gs?.live ? gameBox(t, gs.live, 'LIVE') : ''}
-          ${!gs?.live ? gameBox(t, gs?.next, 'NEXT') : ''}
+          ${!gs?.live ? (pic?.offseason ? `<div class="gamebox"><div class="lab"><span>OFFSEASON</span></div><div class="muted small">The ${esc(t.nick)} are done for ${nowYear()}. Spring training opens in February; roster moves and headlines are on the team page.</div></div>` : gameBox(t, gs?.next, 'NEXT')) : ''}
           ${gameBox(t, gs?.last, 'LAST')}
-          <div class="row small muted" style="margin-top:auto"><span>🏆 ${tot.titles} titles</span><span>📈 ${tot.w}–${tot.l}${tot.t ? '–' + tot.t : ''} all-time</span><a href="#/team/${k}" style="margin-left:auto;font-weight:700">Team hub →</a></div>
+          <div class="row small muted" style="margin-top:auto">${tot ? `<span>🏆 ${tot.titles} titles</span><span>📈 ${tot.w}–${tot.l}${tot.t ? '–' + tot.t : ''} all-time</span>` : `<span>${esc(t.conf)} · Bloomington, IN</span>`}<a href="#/team/${k}" style="margin-left:auto;font-weight:700">Team hub →</a></div>
         </div></div>`;
     }).join('');
     fillPreviewLines($('#teamCards'));
@@ -154,7 +155,7 @@ async function viewHome({ mount, alive }) {
   App.every(() => alive() && draw(), 45000);
   homeLeaders(alive);
 
-  const news = (await Promise.all(TEAM_KEYS.map(k => safe(API.news(TEAMS[k], 6), [])))).flat().sort((a, b) => new Date(b.date) - new Date(a.date));
+  const news = (await Promise.all(LIVE_KEYS.map(k => safe(API.news(TEAMS[k], 6), [])))).flat().sort((a, b) => new Date(b.date) - new Date(a.date));
   if (!alive()) return;
   if (!news.length) { $('#homeNews').innerHTML = errBox('Headlines are unavailable right now.'); return; }
   const withImg = news.find(n => n.img) || news[0], rest = news.filter(n => n !== withImg).slice(0, 6);
@@ -168,7 +169,7 @@ function homeUpcoming(stats) {
   const soon = Date.now() + 10 * 864e5;
   const games = stats.flatMap(({ t, gs }) => (gs?.games || []).filter(g => g.state === 'pre' && g.stype !== 1 && g.ts > Date.now() - 3 * 3600e3 && g.ts < soon).map(g => ({ ...g, t }))).sort((a, b) => a.ts - b.ts).slice(0, 10);
   const el = $('#upcoming'); if (!el) return;
-  el.innerHTML = games.length ? `<div class="upl">${games.map(g => `<a class="uprow" href="javascript:void(0)" data-game="${gameRef(g.t, g)}"><span class="ud"><b>${esc(fmtDate(g.date, { weekday: 'short' }))}</b>${esc(fmtDate(g.date, { month: 'short', day: 'numeric' }))}</span><img src="${teamLogo(g.t)}" alt=""><span class="uv">${g.home ? 'vs' : '@'}</span><img src="${esc(g.opp.logo)}" alt="" onerror="this.style.visibility='hidden'"><span class="un"><b>${esc(g.t.nick)}</b> ${g.home ? 'vs' : 'at'} ${esc(g.opp.name)}<span class="small muted">${esc([g.label, g.venue].filter(Boolean).join(' · '))}</span></span><span class="ut">${esc(fmtTime(g.date))}${g.tv ? `<span class="small muted">${esc(g.tv)}</span>` : ''}</span></a>`).join('')}</div>`
+  el.innerHTML = games.length ? `<div class="upl">${games.map(g => `<a class="uprow" href="javascript:void(0)" data-game="${gameRef(g.t, g)}"><span class="ud"><b>${esc(fmtDate(g.date, { weekday: 'short' }))}</b>${esc(fmtDate(g.date, { month: 'short', day: 'numeric' }))}</span><img src="${teamLogo(g.t)}" alt=""><span class="uv">${g.home ? 'vs' : '@'}</span><img src="${esc(g.opp.logo)}" alt="" onerror="this.style.visibility='hidden'"><span class="un"><b>${esc(g.t.nick)}</b> ${g.home ? 'vs' : 'at'} ${esc(g.opp.name)}<span class="small muted">${esc([g.label, g.venue].filter(Boolean).join(' · '))}</span></span><span class="ut">${g.tbd ? 'Time TBD' : esc(fmtTime(g.date))}${g.tv ? `<span class="small muted">${esc(g.tv)}</span>` : ''}</span></a>`).join('')}</div>`
     : '<div class="muted small">No Philly games in the next 10 days.</div>';
 }
 function homeStandings(stats) {
@@ -176,6 +177,8 @@ function homeStandings(stats) {
   el.innerHTML = stats.map(({ k, t, pic }) => {
     if (!pic) return `<div class="card"><h3>${esc(t.nick)}</h3><div class="muted small">Standings unavailable.</div></div>`;
     let rows, title;
+    if (pic.college) { const rows0 = qvWindow(pic.scopes[0].rows, t.espnId, 7), top0 = rows0[0]; return `<a class="card snap" href="#/team/${k}/picture" style="border-top:5px solid ${t.primary}"><div class="row between" style="margin-bottom:10px"><h3 style="margin:0;font-size:1.15rem">${esc(t.nick)} · ${esc(t.conf)}</h3><span class="pstrip-mini tone-${pic.tone}">${esc(pic.statusShort)}</span></div><div class="mini">${rows0.map(r => `<div class="${r.us ? 'us' : ''}"><span class="s">${r.divRank}</span><img src="${esc(r.logo)}" alt="" onerror="this.style.visibility='hidden'"><b>${esc(r.abbr)}</b><span class="rec">${r.w}-${r.l}</span><span class="gbx">${esc(r.conf)}</span></div>`).join('')}</div><div class="small" style="margin-top:10px;color:var(--accent);font-weight:700">Conference standings &amp; polls ›</div></a>`; }
+    if (pic.offseason) return `<a class="card snap" href="#/team/${k}/picture" style="border-top:5px solid ${t.primary}"><div class="row between" style="margin-bottom:10px"><h3 style="margin:0;font-size:1.15rem">${esc(t.nick)}</h3><span class="pstrip-mini tone-idle">Offseason</span></div><div style="font-weight:800;font-size:1.1rem">${esc(pic.headline)}</div><div class="muted small" style="margin-top:4px">${esc(pic.sub)}</div><div class="small" style="margin-top:10px;color:var(--accent);font-weight:700">Final standings ›</div></a>`;
     if (pic.kind === 'nba') { const o = pic.table.leagues[pic.us.conf].ordered, i = o.indexOf(o.find(x => x.id === pic.us.id)); rows = o.slice(Math.max(0, i - 3), Math.max(0, i - 3) + 7); title = `${pic.us.conf === 'East' ? 'Eastern' : 'Western'} Conference${pic.fin ? ' (final)' : ''}`; }
     else { rows = pic.scopes[0].rows; title = pic.us.divName; }
     const top = rows[0];
@@ -193,9 +196,9 @@ async function homeLeaders(alive) {
 }
 
 /** "Tonight 7:05 PM", "Tomorrow 1:00 PM", "Sat, Sep 27 · 4:25 PM" */
-function whenTxt(iso) {
+function whenTxt(iso, tbd) {
   const d = new Date(iso), now = new Date(), day = x => new Date(x.getFullYear(), x.getMonth(), x.getDate()).getTime();
-  const diff = Math.round((day(d) - day(now)) / 864e5), time = fmtTime(iso);
+  const diff = Math.round((day(d) - day(now)) / 864e5), time = tbd ? 'time TBD' : fmtTime(iso);
   return diff === 0 ? (d.getHours() >= 17 ? `Tonight ${time}` : `Today ${time}`) : diff === 1 ? `Tomorrow ${time}` : `${fmtDay(iso)} · ${time}`;
 }
 function countdown(iso) {
@@ -212,15 +215,15 @@ function homeUpNext(stats) {
   const next = stats.filter(s => s.gs?.next).map(s => ({ ...s, g: s.gs.next })).sort((a, b) => a.g.ts - b.g.ts)[0];
   const card = ({ t, g }, isLive) => `<a class="upnext ${isLive ? 'live' : ''}" href="javascript:void(0)" data-game="${gameRef(t, g)}" style="--c1:${t.primary}">
       <div class="un-lab">${isLive ? '<span class="badge live">Live now</span>' : '<span class="un-tag">Up next</span>'}<span>${esc(t.nick)} · ${esc(g.label || t.sportName)}</span></div>
-      <div class="un-main"><img src="${teamLogo(t)}" alt=""><div class="un-mid">${isLive ? `<b class="un-score">${g.ourScore ?? 0} – ${g.oppScore ?? 0}</b><span>${esc(g.detail)}</span>` : `<b>${g.home ? 'vs' : 'at'} ${esc(g.opp.name)}</b><span>${esc(whenTxt(g.date))}${g.tv ? ' · ' + esc(g.tv) : ''}</span>`}</div><img src="${esc(g.opp.logo)}" alt="" onerror="this.style.visibility='hidden'"></div>
+      <div class="un-main"><img src="${teamLogo(t)}" alt=""><div class="un-mid">${isLive ? `<b class="un-score">${g.ourScore ?? 0} – ${g.oppScore ?? 0}</b><span>${esc(g.detail)}</span>` : `<b>${g.home ? 'vs' : 'at'} ${esc(g.opp.name)}</b><span>${esc(whenTxt(g.date, g.tbd))}${g.tv ? ' · ' + esc(g.tv) : ''}</span>`}</div><img src="${esc(g.opp.logo)}" alt="" onerror="this.style.visibility='hidden'"></div>
       <div class="un-foot">${isLive ? 'Tap for the live game summary ›' : `<span class="cd">${esc(countdown(g.date))}</span><span class="gprev" data-prev="${gameRef(t, g)}"></span>`}</div></a>`;
   el.innerHTML = live.length ? `<div class="grid ${live.length > 1 ? 'g2' : ''}" style="margin-top:18px">${live.map(x => card(x, true)).join('')}</div>` : next ? `<div style="margin-top:18px">${card(next, false)}</div>` : '';
   fillPreviewLines(el);
 }
 /** Compact version for small chips: "Tonight 7:05", "Tmrw 6:05 PM", "Mon 8:15 PM", "Oct 20". */
-function whenShort(iso) {
+function whenShort(iso, tbd) {
   const d = new Date(iso), now = new Date(), day = x => new Date(x.getFullYear(), x.getMonth(), x.getDate()).getTime();
-  const diff = Math.round((day(d) - day(now)) / 864e5), time = fmtTime(iso);
+  const diff = Math.round((day(d) - day(now)) / 864e5), time = tbd ? 'TBD' : fmtTime(iso);
   if (diff === 0) return d.getHours() >= 17 ? `Tonight ${time}` : `Today ${time}`;
   if (diff === 1) return `Tmrw ${time}`;
   if (diff > 1 && diff < 7) return `${d.toLocaleDateString('en-US', { weekday: 'short' })} ${time}`;

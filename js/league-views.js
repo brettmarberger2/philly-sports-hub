@@ -25,7 +25,7 @@ function raceTableHtml(pic, scope, id) {
 }
 
 function picBannerHtml(pic, compact = false) {
-  return `<div class="pic-banner tone-${pic.tone}"><div class="pb-main"><div class="pb-lab">${pic.kind === 'nba' && pic.fin ? 'Last season' : 'If the season ended today'}</div><div class="pb-big">${esc(pic.headline)}</div><div class="pb-sub">${esc(pic.sub)}</div></div>
+  return `<div class="pic-banner tone-${pic.tone}"><div class="pb-main"><div class="pb-lab">${pic.offseason ? 'Season recap' : pic.kind === 'nba' && pic.fin ? 'Last season' : 'If the season ended today'}</div><div class="pb-big">${esc(pic.headline)}</div><div class="pb-sub">${esc(pic.sub)}</div></div>
     ${compact ? '' : `<div class="pb-tiles">${pic.tiles.map(x => `<div><b>${esc(x.v)}</b><span>${esc(x.l)}</span></div>`).join('')}</div>`}</div>`;
 }
 
@@ -34,11 +34,17 @@ async function tabPicture(t, { mount, alive }) {
   const isMlb = t.league === 'mlb';
   const [pic, ps] = await Promise.all([API.picture(t), isMlb ? safe(API.mlbPostseason(), null) : Promise.resolve(null)]);
   if (!alive()) return;
-  const mine = ps?.series?.find(s => s.involvesUs);
+  if (pic.offseason) {
+    mount.innerHTML = `${offseasonBannerHtml(pic, t)}<div class="section" style="margin-top:22px"><h2>${LEAGUES[t.league].short} final standings</h2><div id="shHub"></div></div>
+      <div class="row" style="margin-top:14px"><a class="btn small" href="#/playoffs">Look back at the MLB postseason bracket →</a></div>`;
+    standingsHub(t.league, pic.table, pic, $('#shHub'), 'div');
+    return;
+  }
+  const mine = ps?.series?.find(s => s.involvesUs && !s.over);
   let psBanner = '';
   if (mine) { await attachPostseasonOdds([mine]); if (!alive()) return; psBanner = phillyPostseasonBannerHtml(mine); }
   mount.innerHTML = `${psBanner}${picBannerHtml(pic)}
-    ${isMlb ? `<div class="row" style="margin:14px 0 0"><a class="btn small primary" href="#/playoffs">See the full MLB playoff bracket →</a></div>` : ''}
+    ${isMlb && mine ? `<div class="row" style="margin:14px 0 0"><a class="btn small primary" href="#/playoffs">See the full MLB playoff bracket →</a></div>` : ''}
     <div class="section" style="margin-top:22px"><h2>${LEAGUES[t.league].short} standings</h2><div id="shHub"></div></div>
     <div class="split section"><div class="card"><h3>What needs to happen</h3><ul class="needs">${pic.bullets.map(b => `<li>${b}</li>`).join('')}</ul><p class="disc">Computed live from the standings. Magic numbers assume the nearest competitor; final seeding also depends on tiebreakers.</p></div>
       <div class="card" id="remCard"><h3>Remaining schedule</h3>${spinner('Loading schedule…')}</div></div>`;
@@ -61,6 +67,7 @@ function remainingHtml(t, pic, rem) {
 
 /* compact card used on the team overview + home */
 function pictureCardHtml(pic, t) {
+  if (pic.offseason) return `<h3>Look back</h3><div class="stack" style="gap:8px;align-items:flex-start"><a class="btn small" href="#/team/${t.key}/picture">Final standings →</a><a class="btn small" href="#/playoffs">${nowYear()} MLB postseason bracket →</a><a class="btn small" href="#/team/${t.key}/schedule">${nowYear()} schedule &amp; results →</a></div>`;
   const pick = pic.bullets.filter(b => /^<b>(Division|Playoffs|Play-in|Gap|Cushion|Play-in line)/.test(b)).slice(0, 2);
   return `<h3>Playoff picture</h3>${picBannerHtml(pic, true)}<ul class="needs" style="margin-top:12px">${pick.map(b => `<li>${b}</li>`).join('')}</ul><a class="btn small" href="#/team/${t.key}/picture">Full picture: what needs to happen →</a>`;
 }

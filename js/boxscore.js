@@ -1,6 +1,7 @@
 /* Box scores: tap any game anywhere on the site to see the line score, team stats and every player's line. */
-const SPORT_OF = { nfl: 'football', nba: 'basketball', mlb: 'baseball' };
-const PHILLY_ID = { nfl: '21', nba: '20', mlb: '143' };
+const SPORT_OF = { nfl: 'football', nba: 'basketball', mlb: 'baseball', 'college-football': 'football', 'mens-college-basketball': 'basketball' };
+/** ESPN / MLB id of "our" team in each league (the one highlighted in box scores). */
+const PHILLY_ID = { nfl: '21', nba: '20', mlb: '143', 'college-football': '84', 'mens-college-basketball': '84' };
 /** data-game value for a normalized game: kind|league|id|teamKey */
 const gameRef = (t, g) => `${t.mlbId ? 'mlb' : 'espn'}|${t.league}|${g.id}|${t.key}`;
 
@@ -33,7 +34,7 @@ async function espnSummary(lg, id) {
   const who = x => x?.athlete?.displayName || pname.get(String(x?.playerId)) || '';
   const now = stIn ? { label: st.shortDetail || st.detail || '', down: sit?.downDistanceText || '', poss: sit?.possessionText || '', outs: sit?.outs, balls: sit?.balls, strikes: sit?.strikes, bases: sit && 'onFirst' in sit ? [!!sit.onFirst, !!sit.onSecond, !!sit.onThird] : null, batter: who(sit?.batter), pitcher: who(sit?.pitcher), last: sit?.lastPlay?.text || recent[0]?.text || '', note: sit?.situationNotes?.[0]?.text || '' } : null;
   const nPer = Math.max(0, ...teams.map(t => t.lines.length));
-  const perLabel = i => (lg === 'mlb' ? String(i + 1) : lg === 'nfl' ? (i < 4 ? `Q${i + 1}` : 'OT') : i < 4 ? `Q${i + 1}` : `OT${i - 3}`);
+  const perLabel = i => (lg === 'mlb' ? String(i + 1) : lg === 'nfl' || lg === 'college-football' ? (i < 4 ? `Q${i + 1}` : 'OT') : lg === 'mens-college-basketball' ? (i < 2 ? `H${i + 1}` : i === 2 ? 'OT' : `${i - 1}OT`) : i < 4 ? `Q${i + 1}` : `OT${i - 3}`);
   const injuries = {}; (s.injuries || []).forEach(t => { injuries[String(t.team?.id)] = (t.injuries || []).map(i => ({ name: i.athlete?.displayName, pos: i.athlete?.position?.abbreviation || '', status: i.status, type: i.details?.type || i.type?.description || '' })); });
   const pc = s.pickcenter?.[0], pr = s.predictor;
   const odds = pc ? { details: pc.details, ou: pc.overUnder, provider: pc.provider?.name } : null;

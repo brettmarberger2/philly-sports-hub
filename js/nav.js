@@ -44,10 +44,10 @@ document.addEventListener('click', e => {
 }, true);
 
 /* ---------- Breadcrumbs ---------- */
-const TAB_NAMES = () => Object.fromEntries(TAB_LIST.map(([k, l]) => [k, l]));
+const TAB_NAMES = key => Object.fromEntries((TEAMS[key]?.college ? COLLEGE_TABS : TAB_LIST).map(([k, l]) => [k, l]));
 function renderCrumbs(parts) {
   const head = parts[0] || '', c = [['#/', 'Home']];
-  if (head === 'team' && TEAMS[parts[1]]) { c.push([`#/team/${parts[1]}`, TEAMS[parts[1]].nick]); if (parts[2] && parts[2] !== 'overview') c.push([null, TAB_NAMES()[parts[2]] || parts[2]]); }
+  if (head === 'team' && TEAMS[parts[1]]) { c.push([`#/team/${parts[1]}`, TEAMS[parts[1]].nick]); if (parts[2] && parts[2] !== 'overview') c.push([null, TAB_NAMES(parts[1])[parts[2]] || parts[2]]); }
   else if (head === 'season' && TEAMS[parts[1]]) { c.push([`#/team/${parts[1]}`, TEAMS[parts[1]].nick], [`#/team/${parts[1]}/history`, 'History'], [null, seasonLabel(TEAMS[parts[1]], +parts[2])]); }
   else if (head === 'leagues') c.push([null, 'Leagues']);
   else if (head === 'league' && LEAGUES[parts[1]]) { c.push(['#/leagues', 'Leagues'], [`#/league/${parts[1]}`, LEAGUES[parts[1]].short]); if (parts[2] && parts[2] !== 'standings') c.push([null, (LEAGUE_TABS.find(x => x[0] === parts[2]) || [])[1] || parts[2]]); }
@@ -62,10 +62,11 @@ function renderCrumbs(parts) {
 
 /* ---------- Bottom tab bar (phones) ---------- */
 function renderBottomNav(activeKey) {
+  const short = { eagles: 'Eagles', sixers: '76ers', iufb: 'IU FB', iubb: 'IU BB' };
   const items = [['', 'Home', '<svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 11l9-7 9 7v9a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z"/></svg>'],
-    ...TEAM_KEYS.map(k => [`team/${k}`, TEAMS[k].nick, `<img src="${teamLogo(TEAMS[k])}" alt="">`]),
-    ['history', 'History', '<svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>'], ['leagues', 'Leagues', '<svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 20V10M10 20V4M16 20v-8M22 20H2"/></svg>']];
-  $('#bnav').innerHTML = items.map(([p, l, ic]) => `<a href="#/${p}" class="${(p === '' ? activeKey === '' : activeKey.startsWith(p)) ? 'on' : ''}">${ic}<span>${esc(l)}</span></a>`).join('');
+    ...FOCUS_KEYS.map(k => [`team/${k}`, short[k], `<img src="${teamLogo(TEAMS[k])}" alt="">`])];
+  $('#bnav').innerHTML = items.map(([p, l, ic]) => `<a href="#/${p}" class="${(p === '' ? activeKey === '' : activeKey.startsWith(p)) ? 'on' : ''}">${ic}<span>${esc(l)}</span></a>`).join('') +
+    `<a href="javascript:void(0)" data-qv class="qv"><span class="qvi">⚡</span><span>Game day</span></a>`;
 }
 
 /* Tapping a link to the page you're already on (Home, a team's own tab, the logo) scrolls back to the top. */
