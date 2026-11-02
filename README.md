@@ -1,4 +1,4 @@
-# Philly Sports Hub
+# My Sports Hub
 
 An interactive, mostly-live website for the **Philadelphia Eagles, Phillies and 76ers**.
 

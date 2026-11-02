@@ -41,7 +41,7 @@ async function viewHome({ mount, alive }) {
     <section class="hero big"><div class="hero-grid">
       <div>
         <div class="tri"><span></span><span></span><span></span></div>
-        <h1>Philly sports,<br><em>right now.</em></h1>
+        <h1>My sports,<br><em>right now.</em></h1>
         <p class="lede">Game days, odds, lineups, standings and news for the Eagles and 76ers, plus Indiana football and basketball. The Phillies are in the offseason. Every season since ${yr.min} is in the history section.</p>
         <div class="herobtns">
           <a class="btn primary" style="--team:#0b1a30" href="javascript:void(0)" data-qv>⚡ Game day</a>

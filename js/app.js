@@ -85,7 +85,7 @@ async function route() {
     else if (head === 'shop') fn = viewShop;
     else if (head === 'about') fn = viewAbout;
     else { view.innerHTML = `<div class="card center"><h2>Page not found</h2><a class="btn" href="#/">Back home</a></div>`; return; }
-    document.title = ({ '': 'Philly Sports Hub', team: `${TEAMS[parts[1]]?.nick || ''} · Philly Sports Hub`, history: 'History · Philly Sports Hub', playoffs: 'MLB Playoffs · Philly Sports Hub', leagues: 'Leagues · Philly Sports Hub', league: `${LEAGUES[parts[1]]?.short || ''} Standings · Philly Sports Hub`, year: 'Year Explorer · Philly Sports Hub', season: 'Season · Philly Sports Hub', stadiums: 'Stadiums · Philly Sports Hub', shop: 'Shop · Philly Sports Hub' })[head] || 'Philly Sports Hub';
+    document.title = ({ '': 'My Sports Hub', team: `${TEAMS[parts[1]]?.nick || ''} · My Sports Hub`, history: 'History · My Sports Hub', playoffs: 'MLB Playoffs · My Sports Hub', leagues: 'Leagues · My Sports Hub', league: `${LEAGUES[parts[1]]?.short || ''} Standings · My Sports Hub`, year: 'Year Explorer · My Sports Hub', season: 'Season · My Sports Hub', stadiums: 'Stadiums · My Sports Hub', shop: 'Shop · My Sports Hub' })[head] || 'My Sports Hub';
     await fn({ parts, q, mount: view, token: my, alive: () => my === App.token });
     NAV.after(restoreY, () => my === App.token);
   } catch (e) {
