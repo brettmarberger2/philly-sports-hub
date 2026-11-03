@@ -102,7 +102,7 @@ function offseasonBannerHtml(pic, t) {
 }
 
 /* ---------- College team page ---------- */
-const COLLEGE_TABS = [['overview', 'Overview'], ['picture', 'Standings & Rankings'], ['schedule', 'Schedule & Results'], ['roster', 'Roster'], ['shop', 'Shop']];
+const COLLEGE_TABS = [['overview', 'Overview'], ['schedule', 'Schedule'], ['picture', 'Standings & Rankings'], ['roster', 'Roster'], ['injuries', 'Injuries'], ['shop', 'Shop']];
 
 function collegeStandingsTable(std, t, { windowAround = false } = {}) {
   if (!std.rows.length) return errBox('Conference standings are not available yet.');

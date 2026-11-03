@@ -34,14 +34,15 @@ function setMore(open) {
 document.addEventListener('click', e => { if (e.target.closest('#moreBtn')) setMore($('#moreMenu').hidden); else if (!$('#moreMenu').hidden) setMore(false); });
 
 /* ---------- Live score ticker (all pages) ---------- */
+const NAV_SHORT = { iufb: 'IU FB', iubb: 'IU BB' };
 function tickerItem(t, rg) {
   if (!rg) return '';
   const res = g => `<span class="${g.result === 'W' ? 'win' : g.result === 'L' ? 'loss' : ''}">${g.result} ${g.ourScore}–${g.oppScore}</span> ${g.home ? 'vs' : '@'} ${esc(g.opp.abbr || g.opp.short)}`;
   const recent = [...rg.list].reverse();            // newest first
-  const first = rg.live ? `<span class="badge live" style="padding:1px 7px">Live</span> ${rg.live.ourScore ?? 0}–${rg.live.oppScore ?? 0} ${rg.live.home ? 'vs' : '@'} ${esc(rg.live.opp.abbr || rg.live.opp.short)} <span class="lab">${esc(rg.live.detail)}</span>` : recent[0] ? `${res(recent[0])} <span class="lab">${esc(fmtDate(recent[0].date, { month: 'short', day: 'numeric' }))}</span>` : 'No games yet';
-  const second = rg.live ? (recent[0] ? `Last: ${res(recent[0])}` : '') : recent[1] ? `Prev: ${res(recent[1])} · ${esc(fmtDate(recent[1].date, { month: 'short', day: 'numeric' }))}` : '';
+  const first = rg.live ? `<span class="badge live" style="padding:1px 7px">Live</span> ${rg.live.ourScore ?? 0}–${rg.live.oppScore ?? 0} ${rg.live.home ? 'vs' : '@'} ${esc(rg.live.opp.abbr || rg.live.opp.short)} <span class="lab">${esc(rg.live.detail)}</span>` : recent[0] ? `${res(recent[0])}` : 'No games yet';
+  const second = rg.live ? (recent[0] ? `Last: ${res(recent[0])}` : '') : recent[0] ? `${esc(fmtDate(recent[0].date, { month: 'short', day: 'numeric' }))}${recent[1] ? ` · Prev: ${res(recent[1])}` : ''}` : '';
   const tg = rg.live || recent[0];
-  return `<a class="tk" href="${tg ? 'javascript:void(0)' : '#/team/' + t.key + '/schedule'}" ${tg ? `data-game="${gameRef(t, tg)}"` : ''}><img src="${teamLogo(t)}" alt=""><div><div class="l1"><span>${esc(t.nick)}</span> ${first}</div>${second ? `<div class="l2">${second}</div>` : ''}</div></a>`;
+  return `<a class="tk" href="${tg ? 'javascript:void(0)' : '#/team/' + t.key + '/schedule'}" ${tg ? `data-game="${gameRef(t, tg)}"` : ''}><img src="${teamLogo(t)}" alt=""><div><div class="l1"><span>${esc(NAV_SHORT[t.key] || t.nick)}</span> ${first}</div>${second ? `<div class="l2">${second}</div>` : ''}</div></a>`;
 }
 async function renderTicker() {
   const res = await Promise.all(FOCUS_KEYS.map(async k => ({ t: TEAMS[k], rg: await safe(API.recentGames(TEAMS[k], 2), null) })));

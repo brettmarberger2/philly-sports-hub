@@ -41,9 +41,9 @@ p { margin: 0 0 .8em; }
 
 /* ---------- Live ticker ---------- */
 .ticker { background: var(--bg2); border-bottom: 1px solid var(--line); }
-.ticker-inner { max-width: 1240px; margin: 0 auto; padding: 8px 24px; display: flex; gap: 10px; overflow-x: auto; scrollbar-width: none; align-items: stretch; }
+.ticker-inner { max-width: 1240px; margin: 0 auto; padding: 8px 24px; display: grid; grid-auto-flow: column; grid-auto-columns: minmax(max-content, 1fr); gap: 10px; overflow-x: auto; scrollbar-width: none; align-items: stretch; }
 .ticker-label { font-family: var(--display); font-weight: 700; letter-spacing: .1em; text-transform: uppercase; font-size: .85rem; color: var(--muted); display: flex; align-items: center; gap: 6px; padding-right: 6px; white-space: nowrap; }
-.tk { display: flex; align-items: center; gap: 10px; background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: 7px 14px; color: var(--text); white-space: nowrap; min-width: 250px; box-shadow: 0 1px 2px rgba(16,24,40,.04); }
+.tk { display: flex; align-items: center; gap: 8px; background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: 6px 12px; color: var(--text); white-space: nowrap; box-shadow: 0 1px 2px rgba(16,24,40,.04); }
 .tk:hover { text-decoration: none; border-color: var(--dim); }
 .tk img { width: 26px; height: 26px; object-fit: contain; }
 .tk .who { font-weight: 800; font-size: .86rem; } .tk .st { font-size: .74rem; color: var(--muted); font-weight: 600; }
@@ -422,7 +422,7 @@ main { overflow-x: clip; }
   .tabs { position: static; flex-wrap: wrap; overflow: visible; margin: 16px 0 20px; padding: 0; border-bottom: 0; gap: 6px; background: none; backdrop-filter: none; }
   .tabs a { border: 1px solid var(--line); border-radius: 10px; padding: 8px 12px; font-size: 1rem; margin: 0; background: var(--card); }
   .tabs a.active { background: var(--team); color: #fff; border-color: transparent; }
-  .ticker-inner { display: grid; grid-template-columns: 1fr; gap: 6px; overflow: visible; padding: 8px 14px; }
+  .ticker-inner { grid-auto-flow: row; grid-auto-columns: auto; grid-template-columns: 1fr; gap: 6px; overflow: visible; padding: 8px 14px; }
   .ticker-label { display: none; } .tk { min-width: 0; padding: 6px 12px; } .tk .l2 { display: none; }
 }
 html { scroll-behavior: auto; } @media (max-width: 960px) { .brand span.t { display: inline; font-size: 1.35rem; } }
@@ -818,3 +818,35 @@ table.linescore th, table.linescore td { padding: 8px 10px; } table.linescore .t
 @media (max-width: 620px) { .qv-head { padding: 20px 18px 14px; } .qv-head h2 { font-size: 1.6rem; } .qv-cols { grid-template-columns: 1fr; } .qv-team .nm { font-size: 1.2rem; } .qv-vs { font-size: 1.35rem; } }
 /* Between phone and wide desktop the five team links + More need the room the wordmark takes up. */
 @media (min-width: 961px) and (max-width: 1180px) { .brand span.t { display: none; } .nav a { padding: 9px 8px; } }
+
+/* ===== v17: injury report ===== */
+.badge.warn { background: #fdf0d5; color: #9a5b00; } :root[data-theme="dark"] .badge.warn { background: #3d2e11; color: var(--gold); }
+.inj-sum { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-bottom: 16px; }
+.inj-tile { display: flex; flex-direction: column; gap: 2px; text-align: left; padding: 14px 16px; border-radius: 14px; border: 1px solid var(--line); background: var(--card); color: var(--text); cursor: pointer; font-family: inherit; }
+.inj-tile:hover { border-color: var(--dim); }
+.inj-tile b { font-family: var(--display); font-size: 2rem; line-height: 1; }
+.inj-tile span { font-size: .74rem; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; color: var(--muted); }
+.inj-tile.bad b { color: var(--bad); } .inj-tile.warn b { color: var(--gold); }
+.inj-card { padding-bottom: 6px; margin-bottom: 14px; } .inj-card h3 .dim { font-weight: 600; }
+.inj-row { display: grid; grid-template-columns: 44px 1fr auto; gap: 14px; align-items: start; padding: 12px 4px; border-top: 1px solid var(--line); }
+.inj-row[data-player] { cursor: pointer; } .inj-row[data-player]:hover { background: var(--bg2); }
+.inj-row img { width: 44px; height: 44px; border-radius: 50%; object-fit: cover; background: var(--card2); }
+.inj-top { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.inj-note, .inj-more { margin-top: 4px; font-size: .86rem; color: var(--muted); line-height: 1.45; }
+.inj-more summary { cursor: pointer; list-style: none; } .inj-more summary::after { content: ' Read more'; color: var(--team); font-weight: 700; } .inj-more[open] summary::after { content: ' Show less'; }
+.inj-more p { margin: 6px 0 0; }
+.inj-side { display: flex; flex-direction: column; align-items: flex-end; gap: 4px; text-align: right; }
+.inj-bits { display: flex; flex-wrap: wrap; gap: 4px 14px; margin: 6px 0 8px; } .inj-bits b { color: var(--text); }
+@media (max-width: 620px) { .inj-sum { grid-template-columns: repeat(2, 1fr); } .inj-row { grid-template-columns: 40px 1fr; } .inj-side { grid-column: 2; flex-direction: row; align-items: center; justify-content: flex-start; gap: 10px; } .inj-row img { width: 40px; height: 40px; } }
+/* Long tab bar scrolls sideways on desktop: fade the right edge so it reads as "more this way". */
+@media (min-width: 961px) { .tabs { padding-right: 48px; -webkit-mask-image: linear-gradient(90deg, #000 calc(100% - 48px), transparent); mask-image: linear-gradient(90deg, #000 calc(100% - 48px), transparent); } }
+/* Ticker: four cards fit in a row on wide screens; below that they go two-by-two (one column on phones) so nothing is cut off. */
+@media (max-width: 1180px) { .ticker-inner { grid-auto-flow: row; grid-auto-columns: auto; grid-template-columns: repeat(2, minmax(0, 1fr)); overflow: visible; } .ticker-label { display: none; } .tk { min-width: 0; } .tk .l2 { display: block; } }
+@media (max-width: 620px) { .ticker-inner { grid-template-columns: 1fr; } .tk .l2 { display: none; } }
+/* Phones/tablets: one swipeable row of tabs instead of a wall of wrapped chips pushing the content off-screen. */
+@media (max-width: 960px) {
+  .tabs { flex-wrap: nowrap; overflow-x: auto; margin: 12px -14px 16px; padding: 2px 14px 6px; gap: 6px; -webkit-mask-image: linear-gradient(90deg, #000 calc(100% - 28px), transparent); mask-image: linear-gradient(90deg, #000 calc(100% - 28px), transparent); }
+  .tabs a { flex: 0 0 auto; }
+  .tabsep { flex: 0 0 auto; flex-basis: auto; align-self: center; border-left: 1px solid var(--line); margin: 0 2px 0 4px; padding: 0 4px 0 12px; }
+}
+.inj-tile.on { border-color: var(--text); box-shadow: 0 0 0 1px var(--text); }

@@ -1,6 +1,6 @@
 /* Team page shell + live-data tabs: overview, roster, depth chart, contracts, stats, schedule */
 const TAB_LIST = [
-  ['overview', 'Overview'], ['picture', 'Standings & Playoffs'], ['schedule', 'Schedule & Results'], ['stats', 'Stats'], ['leaders', 'League Leaders'], ['scores', 'League Scores & News'], ['roster', 'Roster'], ['depth', 'Depth Chart'], ['contracts', 'Contracts'],
+  ['overview', 'Overview'], ['schedule', 'Schedule'], ['picture', 'Standings'], ['roster', 'Roster'], ['injuries', 'Injuries'], ['depth', 'Depth Chart'], ['stats', 'Stats'], ['contracts', 'Contracts'], ['leaders', 'League Leaders'], ['scores', 'League News'],
   ['coaches', 'Coaches'], ['history', 'History'], ['legends', 'Legends'], ['stadium', 'Stadium'], ['shop', 'Shop'],
 ];
 const yearLabel = (t, y) => (t.league === 'nba' ? `${y - 1}–${String(y).slice(2)}` : String(y));
@@ -24,13 +24,14 @@ async function viewTeam({ parts, q, mount, alive }) {
     </div>
     <div class="tabs" id="tabs">${tabs.map(([k, l]) => `${k === 'coaches' ? '<span class="tabsep">Club &amp; history</span>' : ''}<a href="#/team/${key}/${k}" class="${k === tab ? 'active' : ''}">${l}</a>`).join('')}</div>
     <div id="tabBody">${spinner()}</div>`;
+  { const tb = $('#tabs'), on = $('#tabs a.active'); if (tb && on && tb.scrollWidth > tb.clientWidth) tb.scrollLeft = Math.max(0, on.offsetLeft - tb.clientWidth / 2 + on.offsetWidth / 2); }
   safe(API.team(t)).then(info => {
     if (!alive() || !info) return;
     const has = info.w + info.l + info.tie > 0;
     $('#headStats').innerHTML = `<div class="big-stat"><div class="v">${has ? esc(info.summary) : '—'}</div><div class="l">Record</div></div>
       <div class="big-stat"><div class="v" style="font-size:1.4rem;padding-top:6px">${esc(info.standingSummary || '—')}</div><div class="l">Standing</div></div>`;
   });
-  const fn = { overview: t.college ? tabCollegeOverview : tabOverview, picture: t.college ? tabCollegePicture : tabPicture, leaders: (tt, o) => API.leagueTable(tt.league).then(tb => leagueLeadersTab(tt.league, tb, o.mount, o.alive)), scores: (tt, o) => leagueNewsTab(tt.league, o.mount, o.alive), roster: tabRoster, depth: tabDepth, contracts: tabContracts, stats: tabStats, schedule: tabSchedule, coaches: tabCoaches, history: tabHistory, legends: tabLegends, stadium: tabStadium, shop: tabShop }[tab];
+  const fn = { overview: t.college ? tabCollegeOverview : tabOverview, picture: t.college ? tabCollegePicture : tabPicture, leaders: (tt, o) => API.leagueTable(tt.league).then(tb => leagueLeadersTab(tt.league, tb, o.mount, o.alive)), scores: (tt, o) => leagueNewsTab(tt.league, o.mount, o.alive), roster: tabRoster, injuries: tabInjuries, depth: tabDepth, contracts: tabContracts, stats: tabStats, schedule: tabSchedule, coaches: tabCoaches, history: tabHistory, legends: tabLegends, stadium: tabStadium, shop: tabShop }[tab];
   await fn(t, { mount: $('#tabBody'), q, alive, key });
   if (alive()) $('#tabBody').style.minHeight = '';
   if (alive()) $('#tabBody').style.minHeight = '';
@@ -63,6 +64,7 @@ async function tabOverview(t, { mount, alive }) {
       <div class="card"><h3>Latest news</h3><div id="ovNews">${spinner()}</div></div>
     </div><div class="stack">
       <div class="card" id="ovPicture">${spinner('Loading playoff picture…')}</div>
+      <div class="card" id="ovInj">${spinner('Loading injury report…')}</div>
       <div class="card" id="ovOutlook">${spinner('Building outlook…')}</div>
       <div class="card" id="ovCoach"></div>
       <div class="card"><h3>Franchise at a glance</h3>${glanceHtml(t)}</div>
@@ -70,6 +72,7 @@ async function tabOverview(t, { mount, alive }) {
     </div></div>`;
   const infoP = safe(API.team(t)), gsP = safe(API.gameStatus(t)), rosterP = safe(API.roster(t)), stdP = safe(API.standings(t)), leadP = (t.league === 'nba' ? API.nbaTable().then(tb => API.leaders(t, tb.fallback ? tb.year : null)) : API.leaders(t)).catch(() => []), newsP = safe(API.news(t, 6), []);
 
+  overviewInjuries(t, $('#ovInj'), alive);
   safe(API.picture(t), null).then(pic => { if (alive()) $('#ovPicture').innerHTML = pic ? pictureCardHtml(pic, t) : '<h3>Playoff picture</h3><div class="muted small">Standings are not available right now.</div>'; });
   if (t.league === 'mlb') {
     // Offseason recap once the Phillies are done; the live-series banner only while they are still playing.
@@ -130,7 +133,7 @@ function outlookHtml(t, info, gs, roster, std) {
     const ps = roster.players, ages = ps.map(p => p.age).filter(Boolean), avg = ages.length ? (sum(ages) / ages.length).toFixed(1) : null;
     if (avg) rows.push(['Roster age', `${avg} avg · ${ps.filter(p => p.age >= 31).length} players 31+`]);
     const inj = ps.filter(p => p.injuries.length);
-    rows.push(['Health report', inj.length ? `${inj.length} on the injury report: ${inj.slice(0, 5).map(p => `<a href="javascript:void(0)" data-player="${p.id}" data-team="${t.key}">${esc(p.name)}</a> (${esc(p.injuries[0].status)})`).join(', ')}${inj.length > 5 ? '…' : ''}` : 'No players currently listed as injured']);
+    rows.push(['Health report', inj.length ? `${inj.length} on the injury report: ${inj.slice(0, 5).map(p => `<a href="javascript:void(0)" data-player="${p.id}" data-team="${t.key}">${esc(p.name)}</a> (${esc(p.injuries[0].status)})`).join(', ')}${inj.length > 5 ? '…' : ''} · <a href="#/team/${t.key}/injuries">full report ›</a>` : 'No players currently listed as injured']);
     const paid = ps.filter(p => p.salary).sort((a, b) => b.salary - a.salary);
     if (paid.length) { const total = sum(paid, p => p.salary); rows.push(['Payroll concentration', `${money(total)} tracked · top 3 (${paid.slice(0, 3).map(p => esc(p.last || p.name)).join(', ')}) = ${(sum(paid.slice(0, 3), p => p.salary) / total * 100).toFixed(0)}%`]); }
   }

@@ -5,7 +5,7 @@ const QV_SHORT = { eagles: 'Eagles', sixers: '76ers', iufb: 'IU Football', iubb:
 const qvWindow = (rows, id, n = 7) => { if (!rows?.length) return []; const i = Math.max(0, rows.findIndex(r => String(r.id) === String(id))), a = Math.max(0, Math.min(i - 3, rows.length - n)); return rows.slice(a, a + n); };
 
 async function qvPane(t) {
-  const [info, gs, pic, news] = await Promise.all([timeout(safe(API.team(t), null), 8000), timeout(safe(API.gameStatus(t), null), 8000), timeout(safe(API.picture(t), null), 8000), timeout(safe(API.news(t, 3), []), 8000, [])]);
+  const [info, gs, pic, news, injr] = await Promise.all([timeout(safe(API.team(t), null), 8000), timeout(safe(API.gameStatus(t), null), 8000), timeout(safe(API.picture(t), null), 8000), timeout(safe(API.news(t, 3), []), 8000, []), timeout(safe(API.injuries(t), null), 8000)]);
   const g = gs?.live || gs?.next, last = gs?.last, lg = t.league;
   let sum = null, depth = null;
   if (g && !t.mlbId) {
@@ -14,7 +14,7 @@ async function qvPane(t) {
   }
   const ourId = String(t.mlbId || t.espnId);
   const us = sum?.teams?.find(x => x.id === ourId), them = sum?.teams?.find(x => x !== us);
-  const inj = ((sum?.injuries || {})[ourId] || []).filter(i => !/^Active$/i.test(i.status)).slice(0, 5);
+  const injAll = injr?.list || ((sum?.injuries || {})[ourId] || []).filter(i => !/^Active$/i.test(i.status)), inj = injAll.slice(0, 5);
   const win = us && sum?.predict?.[us.id];
   const starters = depthStarters(lg, depth).filter(x => x[1]).slice(0, 10);
   const state = pic?.offseason ? 'Offseason' : g ? (gs.live ? 'Live now' : 'Next up') : 'No game scheduled';
@@ -25,7 +25,7 @@ async function qvPane(t) {
       <div class="small muted">${esc([g.opp.name, g.venue, g.tv].filter(Boolean).join(' · '))}${gs.live || g.tbd ? '' : ` · <b>${esc(countdown(g.date))}</b>`}</div></a>
     ${sum?.odds || win != null ? `<div class="pvodds qv-odds">${sum.odds ? `<div><span class="muted small">Line${sum.odds.provider ? ` (${esc(sum.odds.provider)})` : ''}</span><b>${esc(sum.odds.details || '—')}</b></div><div><span class="muted small">Over/under</span><b>${esc(sum.odds.ou ?? '—')}</b></div>` : ''}${win != null && them ? `<div class="pvwin"><span class="muted small">ESPN win projection</span><div class="bar"><i style="width:${win}%"></i></div><div class="row between small"><b>${esc(us.abbr)} ${win.toFixed(0)}%</b><b>${esc(them.abbr)} ${(100 - win).toFixed(0)}%</b></div></div>` : ''}</div>` : ''}
     <div class="qv-cols">
-      <div><h4 class="qv-h">Injuries</h4>${inj.length ? inj.map(i => `<div class="pvrow"><span><b>${esc(i.name)}</b> <span class="dim small">${esc(i.pos)}</span></span><span class="badge ${/out|reserve/i.test(i.status) ? 'bad' : ''}">${esc(i.status)}</span></div>`).join('') : '<div class="muted small">None listed.</div>'}</div>
+      <div><h4 class="qv-h">Injuries${injAll.length ? ` <span class="dim">${injAll.length}</span>` : ''}</h4>${inj.length ? inj.map(i => `<div class="pvrow"><span><b>${esc(i.name)}</b> <span class="dim small">${esc(i.pos)}</span></span><span class="badge ${/out|reserve/i.test(i.status) ? 'bad' : ''}">${esc(i.status)}</span></div>`).join('') + (injAll.length > inj.length ? `<a class="small" href="#/team/${t.key}/injuries">+${injAll.length - inj.length} more · full injury report ›</a>` : `<a class="small" href="#/team/${t.key}/injuries">Full injury report ›</a>`) : '<div class="muted small">None listed.</div>'}</div>
       <div><h4 class="qv-h">Projected starters</h4>${starters.length ? starters.map(([p, n]) => `<div class="pvrow"><span class="muted">${esc(p)}</span><b>${esc(n)}</b></div>`).join('') : '<div class="muted small">Not published yet. Open the full preview for the latest.</div>'}</div></div>
     <a class="btn small primary" style="margin-top:10px" href="javascript:void(0)" data-game="${gameRef(t, g)}">Full preview, lineups &amp; odds ›</a>` : `<div class="qv-game flat"><div class="qv-lab"><span class="qv-tag">${esc(state)}</span></div><div class="muted small">${pic?.offseason ? esc(pic.sub) : 'Nothing on the schedule right now.'}</div></div>`;
 
