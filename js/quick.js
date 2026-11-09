@@ -5,7 +5,7 @@ const QV_SHORT = { eagles: 'Eagles', sixers: '76ers', iufb: 'IU Football', iubb:
 const qvWindow = (rows, id, n = 7) => { if (!rows?.length) return []; const i = Math.max(0, rows.findIndex(r => String(r.id) === String(id))), a = Math.max(0, Math.min(i - 3, rows.length - n)); return rows.slice(a, a + n); };
 
 async function qvPane(t) {
-  const [info, gs, pic, news, injr] = await Promise.all([timeout(safe(API.team(t), null), 8000), timeout(safe(API.gameStatus(t), null), 8000), timeout(safe(API.picture(t), null), 8000), timeout(safe(API.news(t, 3), []), 8000, []), timeout(safe(API.injuries(t), null), 8000)]);
+  const [info, gs, pic, news, injr] = await Promise.all([timeout(safe(API.team(t), null), 8000), timeout(safe(API.gameStatus(t), null), 8000), timeout(safe(API.picture(t), null), 8000), timeout(safe(API.news(t, 12), []), 8000, []), timeout(safe(API.injuries(t), null), 8000)]);
   const g = gs?.live || gs?.next, last = gs?.last, lg = t.league;
   let sum = null, depth = null;
   if (g && !t.mlbId) {
@@ -32,7 +32,8 @@ async function qvPane(t) {
   const lastHtml = last ? `<a class="qv-last" href="javascript:void(0)" data-game="${gameRef(t, last)}">${resultChip(last)} <span>${last.home ? 'vs' : '@'} ${esc(last.opp.name)}</span><span class="dim small">${esc(fmtDate(last.date, { month: 'short', day: 'numeric' }))} · box score ›</span></a>` : '';
   const rows = pic ? (pic.college ? qvWindow(pic.scopes[0].rows, ourId) : pic.kind === 'nfl' ? (pic.scopes[0].rows || []) : pic.kind === 'nba' ? qvWindow(pic.scopes[0].rows, ourId) : (pic.scopes[0]?.rows || [])) : [];
   const stand = rows.length ? `<h4 class="qv-h">${pic.college ? esc(t.conf) : pic.kind === 'nba' ? (pic.us.conf === 'East' ? 'Eastern Conference' : 'Western Conference') : esc(shortDiv(pic.us.divName || ''))}</h4><div class="mini qv-mini">${rows.map((r, i) => `<div class="${String(r.id) === ourId ? 'us' : ''}"><span class="s">${pic.kind === 'nba' ? (r.seed ?? i + 1) : (r.divRank ?? i + 1)}</span><img src="${esc(r.logo)}" alt="" onerror="this.style.visibility='hidden'"><b>${esc(r.abbr)}</b><span class="rec">${r.w}-${r.l}${r.t ? '-' + r.t : ''}</span></div>`).join('')}</div>` : '';
-  const newsHtml = news?.length ? `<h4 class="qv-h">Headlines</h4>${news.map(a => `<a class="news" href="${esc(a.link)}" target="_blank" rel="noopener"><div><div class="t">${esc(a.title)}</div><div class="small muted">${ago(a.date)}</div></div></a>`).join('')}` : '';
+  const topNews = news?.length ? newsSplit(news).top.slice(0, 3) : [];
+  const newsHtml = topNews.length ? `<h4 class="qv-h">Top news <a class="small" href="#/team/${t.key}/news" style="float:right;text-transform:none;letter-spacing:0">All news ›</a></h4>${topNews.map(a => `<a class="news" href="${esc(a.link)}" target="_blank" rel="noopener"><div><div class="t">${esc(a.title)}</div><div class="small muted">${ago(a.date)}</div></div></a>`).join('')}` : '';
   const status = pic ? `<div class="qv-status tone-${pic.tone}"><b>${esc(pic.headline)}</b><span>${esc(pic.sub)}</span></div>` : '';
 
   return `<div class="qv-team" style="--team:${t.primary}"><img src="${esc(teamLogoOn(t))}" alt=""><div><div class="nm">${esc(t.name)}</div><div class="small">${esc(info?.standingSummary || state)}</div></div><div class="rc">${info && (info.w + info.l + info.tie) > 0 ? esc(info.summary) : '—'}<small>Record</small></div></div>

@@ -102,7 +102,7 @@ function offseasonBannerHtml(pic, t) {
 }
 
 /* ---------- College team page ---------- */
-const COLLEGE_TABS = [['overview', 'Overview'], ['schedule', 'Schedule'], ['picture', 'Standings & Rankings'], ['roster', 'Roster'], ['injuries', 'Injuries'], ['shop', 'Shop']];
+const COLLEGE_TABS = [['overview', 'Overview'], ['news', 'News'], ['schedule', 'Schedule'], ['picture', 'Standings & Rankings'], ['roster', 'Roster'], ['injuries', 'Injuries'], ['shop', 'Shop']];
 
 function collegeStandingsTable(std, t, { windowAround = false } = {}) {
   if (!std.rows.length) return errBox('Conference standings are not available yet.');
@@ -128,15 +128,15 @@ function pollCardHtml(poll, t, { limit = 25 } = {}) {
 async function tabCollegeOverview(t, { mount, alive }) {
   mount.innerHTML = `<div class="split"><div class="stack">
       <div class="card" id="ovGames">${spinner()}</div>
+      <div class="card" id="ovNews">${spinner()}</div>
       <div class="card" id="ovLast">${spinner('Loading last game…')}</div>
       <div class="card"><h3>${esc(t.conf)} standings</h3><div id="ovStd">${spinner()}</div></div>
-      <div class="card"><h3>Latest news</h3><div id="ovNews">${spinner()}</div></div>
     </div><div class="stack">
       <div class="card" id="ovRank">${spinner('Loading rankings…')}</div>
       <div class="card" id="ovOutlook">${spinner()}</div>
       <div class="card" id="ovCoach"></div>
     </div></div>`;
-  const gsP = safe(API.gameStatus(t)), stdP = safe(collegeStandings(t), null), rankP = safe(collegeRanks(t), []), rosterP = safe(API.roster(t)), newsP = safe(API.news(t, 6), []), infoP = safe(API.team(t));
+  const gsP = safe(API.gameStatus(t)), stdP = safe(collegeStandings(t), null), rankP = safe(collegeRanks(t), []), rosterP = safe(API.roster(t)), newsP = safe(API.news(t, 14), []), infoP = safe(API.team(t));
   const drawGames = async () => {
     const gs = await gsP; if (!alive() || !gs) { if (alive()) $('#ovGames').innerHTML = errBox('Schedule data unavailable.'); return; }
     const played = gs.games.filter(g => g.state === 'post' && g.stype !== 1), upcoming = gs.games.filter(g => g.state === 'pre' && g.stype !== 1).slice(0, 5);
@@ -149,7 +149,7 @@ async function tabCollegeOverview(t, { mount, alive }) {
   drawGames(); App.every(() => alive() && drawGames(), 45000);
   gsP.then(gs => lastGameCard(t, gs, alive));
   stdP.then(s => { if (alive()) $('#ovStd').innerHTML = s ? collegeStandingsTable(s, t, { windowAround: true }) + `<a class="btn small" style="margin-top:12px" href="#/team/${t.key}/picture">Full ${esc(t.conf)} standings →</a>` : errBox('Standings unavailable.'); });
-  newsP.then(n => { if (alive()) $('#ovNews').innerHTML = n?.length ? n.map(a => `<a class="news" href="${esc(a.link)}" target="_blank" rel="noopener">${a.img ? `<img src="${esc(a.img)}" alt="" loading="lazy">` : ''}<div><div class="t">${esc(a.title)}</div><div class="small muted">${ago(a.date)}</div></div></a>`).join('') : errBox('No headlines right now.'); });
+  newsP.then(n => { if (alive()) overviewNews(t, $('#ovNews'), n); });
   rankP.then(ranks => {
     if (!alive()) return;
     const main = ranks.find(r => r.short === 'CFP') || ranks.find(r => r.short === 'AP') || ranks[0];

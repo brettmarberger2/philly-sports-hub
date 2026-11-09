@@ -215,7 +215,7 @@ const API = {
   /* ---------- News ---------- */
   async news(t, limit = 8) {
     const j = await getJSON(`${ESPN.site(t)}/news?team=${t.espnId}&limit=${limit}`, 300);
-    return (j.articles || []).map(a => ({ title: a.headline, desc: a.description, date: a.published, img: a.images?.[0]?.url, link: a.links?.web?.href || '#', team: t.key })).slice(0, limit);
+    return (j.articles || []).map(a => ({ title: a.headline, desc: a.description, date: a.published, img: a.images?.[0]?.url, link: a.links?.web?.href || '#', team: t.key, type: a.type || '', tagged: (a.categories || []).some(c => c.type === 'team' && String(c.teamId) === String(t.espnId)) })).slice(0, limit);
   },
 
   /* ---------- Player detail ---------- */

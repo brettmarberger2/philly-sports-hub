@@ -692,7 +692,7 @@ table.linescore th, table.linescore td { padding: 8px 10px; } table.linescore .t
 @media (max-width: 620px) {
   .hero.big .lede { display: none; }
   .hero.big h1 { font-size: 2.3rem; }
-  .herobtns { flex-wrap: nowrap; overflow-x: auto; margin: 14px -16px 0; padding: 0 16px 4px; scrollbar-width: none; } .herobtns::-webkit-scrollbar { display: none; }
+  .herobtns { flex-wrap: wrap; margin: 14px 0 0; padding: 0; }
   .herobtns .btn { flex: none; }
   .hero.big .hero-grid { gap: 18px; }
 }
@@ -850,3 +850,29 @@ table.linescore th, table.linescore td { padding: 8px 10px; } table.linescore .t
   .tabsep { flex: 0 0 auto; flex-basis: auto; align-self: center; border-left: 1px solid var(--line); margin: 0 2px 0 4px; padding: 0 4px 0 12px; }
 }
 .inj-tile.on { border-color: var(--text); box-shadow: 0 0 0 1px var(--text); }
+
+/* ===== v18: phone QA fixes ===== */
+@media (max-width: 620px) {
+  /* Ticker: one swipeable row of cards instead of four stacked ones that push the page down. */
+  .ticker-inner { display: flex; grid-template-columns: none; overflow-x: auto; scroll-snap-type: x proximity; gap: 8px; padding: 8px 14px; -webkit-mask-image: linear-gradient(90deg, #000 calc(100% - 24px), transparent); mask-image: linear-gradient(90deg, #000 calc(100% - 24px), transparent); }
+  .tk { flex: 0 0 auto; min-width: 0; max-width: 86vw; scroll-snap-align: start; padding: 6px 12px; }
+  .tk .l2 { display: block; }
+  /* League leader cards: let long names wrap rather than being cut off with an ellipsis. */
+  .ldcard .lr .nm { white-space: normal; overflow: visible; text-overflow: clip; line-height: 1.2; } .ldcard .lr .nm .dim { display: none; }
+}
+
+/* ===== v19: team news ===== */
+.nlead { min-height: 220px; border-radius: 16px; } .nlead .in { padding: 18px; } .nlead .t { font-size: 1.5rem; } .nlead .d { display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
+.nlead-wrap { margin: 12px 0 14px; } .ntop .nlead { min-height: 300px; } .ntop .nlead .t { font-size: 1.9rem; }
+.news .nd { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; margin: 2px 0; }
+.news .nk { color: var(--team); text-transform: uppercase; letter-spacing: .05em; font-size: .7rem; }
+.news > div { min-width: 0; }
+@media (max-width: 620px) { .news img { width: 92px; height: 66px; } .nlead { min-height: 200px; } .nlead .t { font-size: 1.3rem; } .ntop .nlead .t { font-size: 1.5rem; } }
+@media (max-width: 620px) {
+  /* Bar charts: name and value on one line, bar underneath, so long player names aren't cut off. */
+  .bar-h { grid-template-columns: minmax(0, 1fr) auto; row-gap: 3px; margin: 11px 0; }
+  .bar-h > :nth-child(1) { white-space: normal !important; overflow: visible !important; text-overflow: clip !important; }
+  .bar-h .track { grid-column: 1 / -1; grid-row: 2; } .bar-h > :nth-child(3) { grid-column: 2; grid-row: 1; text-align: right; }
+}
+@media (max-width: 960px) { .bnav { grid-template-columns: repeat(6, minmax(0, 1fr)); box-sizing: border-box; padding-left: 2px; padding-right: 2px; } .bnav a { min-width: 0; } .bnav a span { white-space: nowrap; } }
+@media (min-width: 1181px) { .ticker-inner { grid-template-columns: auto; } }

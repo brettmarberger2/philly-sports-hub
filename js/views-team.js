@@ -1,6 +1,6 @@
 /* Team page shell + live-data tabs: overview, roster, depth chart, contracts, stats, schedule */
 const TAB_LIST = [
-  ['overview', 'Overview'], ['schedule', 'Schedule'], ['picture', 'Standings'], ['roster', 'Roster'], ['injuries', 'Injuries'], ['depth', 'Depth Chart'], ['stats', 'Stats'], ['contracts', 'Contracts'], ['leaders', 'League Leaders'], ['scores', 'League News'],
+  ['overview', 'Overview'], ['news', 'News'], ['schedule', 'Schedule'], ['picture', 'Standings'], ['roster', 'Roster'], ['injuries', 'Injuries'], ['depth', 'Depth Chart'], ['stats', 'Stats'], ['contracts', 'Contracts'], ['leaders', 'League Leaders'], ['scores', 'League News'],
   ['coaches', 'Coaches'], ['history', 'History'], ['legends', 'Legends'], ['stadium', 'Stadium'], ['shop', 'Shop'],
 ];
 const yearLabel = (t, y) => (t.league === 'nba' ? `${y - 1}–${String(y).slice(2)}` : String(y));
@@ -31,7 +31,7 @@ async function viewTeam({ parts, q, mount, alive }) {
     $('#headStats').innerHTML = `<div class="big-stat"><div class="v">${has ? esc(info.summary) : '—'}</div><div class="l">Record</div></div>
       <div class="big-stat"><div class="v" style="font-size:1.4rem;padding-top:6px">${esc(info.standingSummary || '—')}</div><div class="l">Standing</div></div>`;
   });
-  const fn = { overview: t.college ? tabCollegeOverview : tabOverview, picture: t.college ? tabCollegePicture : tabPicture, leaders: (tt, o) => API.leagueTable(tt.league).then(tb => leagueLeadersTab(tt.league, tb, o.mount, o.alive)), scores: (tt, o) => leagueNewsTab(tt.league, o.mount, o.alive), roster: tabRoster, injuries: tabInjuries, depth: tabDepth, contracts: tabContracts, stats: tabStats, schedule: tabSchedule, coaches: tabCoaches, history: tabHistory, legends: tabLegends, stadium: tabStadium, shop: tabShop }[tab];
+  const fn = { overview: t.college ? tabCollegeOverview : tabOverview, picture: t.college ? tabCollegePicture : tabPicture, leaders: (tt, o) => API.leagueTable(tt.league).then(tb => leagueLeadersTab(tt.league, tb, o.mount, o.alive)), scores: (tt, o) => leagueNewsTab(tt.league, o.mount, o.alive), roster: tabRoster, news: tabNews, injuries: tabInjuries, depth: tabDepth, contracts: tabContracts, stats: tabStats, schedule: tabSchedule, coaches: tabCoaches, history: tabHistory, legends: tabLegends, stadium: tabStadium, shop: tabShop }[tab];
   await fn(t, { mount: $('#tabBody'), q, alive, key });
   if (alive()) $('#tabBody').style.minHeight = '';
   if (alive()) $('#tabBody').style.minHeight = '';
@@ -58,10 +58,10 @@ function standingsTable(std, t) {
 async function tabOverview(t, { mount, alive }) {
   mount.innerHTML = `<div id="ovPs"></div><div class="split"><div class="stack">
       <div class="card" id="ovGames">${spinner()}</div>
+      <div class="card" id="ovNews">${spinner()}</div>
       <div class="card" id="ovLast">${spinner('Loading last game…')}</div>
       <div class="card"><h3>Standings</h3><div id="ovStd">${spinner()}</div></div>
       <div class="card"><h3>Team leaders</h3><div id="ovLead">${spinner()}</div></div>
-      <div class="card"><h3>Latest news</h3><div id="ovNews">${spinner()}</div></div>
     </div><div class="stack">
       <div class="card" id="ovPicture">${spinner('Loading playoff picture…')}</div>
       <div class="card" id="ovInj">${spinner('Loading injury report…')}</div>
@@ -70,7 +70,7 @@ async function tabOverview(t, { mount, alive }) {
       <div class="card"><h3>Franchise at a glance</h3>${glanceHtml(t)}</div>
       <div class="card"><h3>Did you know?</h3>${CUR.teamFacts[t.key].map(f => `<div class="fact">${esc(f)}</div>`).join('')}</div>
     </div></div>`;
-  const infoP = safe(API.team(t)), gsP = safe(API.gameStatus(t)), rosterP = safe(API.roster(t)), stdP = safe(API.standings(t)), leadP = (t.league === 'nba' ? API.nbaTable().then(tb => API.leaders(t, tb.fallback ? tb.year : null)) : API.leaders(t)).catch(() => []), newsP = safe(API.news(t, 6), []);
+  const infoP = safe(API.team(t)), gsP = safe(API.gameStatus(t)), rosterP = safe(API.roster(t)), stdP = safe(API.standings(t)), leadP = (t.league === 'nba' ? API.nbaTable().then(tb => API.leaders(t, tb.fallback ? tb.year : null)) : API.leaders(t)).catch(() => []), newsP = safe(API.news(t, 14), []);
 
   overviewInjuries(t, $('#ovInj'), alive);
   safe(API.picture(t), null).then(pic => { if (alive()) $('#ovPicture').innerHTML = pic ? pictureCardHtml(pic, t) : '<h3>Playoff picture</h3><div class="muted small">Standings are not available right now.</div>'; });
@@ -102,7 +102,7 @@ async function tabOverview(t, { mount, alive }) {
     if (!alive()) return;
     $('#ovLead').innerHTML = l?.length ? `<div class="stars">${l.map(x => leaderTileHtml(t, x)).join('')}</div><p class="small dim" style="margin-top:8px">${t.league === 'nba' && l[0]?.year != null ? 'Last season. ' : ''}Tap a tile for the full leaderboard.</p>` : `<div class="muted small">Season leaders will appear once games have been played.</div>`;
   });
-  newsP.then(n => { if (alive()) $('#ovNews').innerHTML = n?.length ? n.map(a => `<a class="news" href="${esc(a.link)}" target="_blank" rel="noopener">${a.img ? `<img src="${esc(a.img)}" alt="" loading="lazy">` : ''}<div><div class="t">${esc(a.title)}</div><div class="small muted">${ago(a.date)}</div></div></a>`).join('') : errBox('No headlines right now.'); });
+  newsP.then(n => { if (alive()) overviewNews(t, $('#ovNews'), n); });
 
   const [info, gs, roster, std] = await Promise.all([infoP, gsP, rosterP, stdP]);
   if (!alive()) return;
