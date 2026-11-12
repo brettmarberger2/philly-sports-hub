@@ -889,3 +889,5 @@ table.linescore th, table.linescore td { padding: 8px 10px; } table.linescore .t
 /* Mid-size screens: short team names in the top nav (IU FB / IU BB) so News, Leagues and More all stay visible. */
 .nav a .ns { display: none; }
 @media (max-width: 1380px) { .nav a .nl { display: none; } .nav a .ns { display: inline; } }
+/* Give the ‹ button its own room at the top of a stacked pop-up so it doesn't sit on the header text. */
+.modal:has(.mback) > .pl-head, .modal:has(.mback) > .qv-head, .modal:has(.mback) > .pl-body:first-of-type { padding-top: 62px; }
