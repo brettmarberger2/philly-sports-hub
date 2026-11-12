@@ -40,7 +40,7 @@ async function openLegend(teamKey, name) {
   openModal(body(undefined));
   const wiki = await safe(getJSON(`https://en.wikipedia.org/api/rest_v1/page/summary/${encodeURIComponent(title)}`, 604800), null);
   if (!$('#modalBack').classList.contains('open')) return;
-  openModal(body(wiki && wiki.type !== 'disambiguation' && wiki.extract ? wiki : null));
+  updateModal(body(wiki && wiki.type !== 'disambiguation' && wiki.extract ? wiki : null));
 }
 
 /* ---------- "What happened" moment modal ---------- */

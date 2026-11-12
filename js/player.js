@@ -89,12 +89,12 @@ async function openPlayer(teamKey, id, nameHint) {
     <div data-plpane="stats" style="display:none">${stats === undefined ? spinner('Loading career stats…') : careerTables(stats)}</div>
     <div data-plpane="teams" style="display:none">${stats === undefined ? spinner() : (teamsPath(stats, t) || '<div class="muted small">Team history unavailable.</div>')}</div>
   </div>`;
-  openModal(shell(null, undefined));
+  updateModal(shell(null, undefined));
   const { bio, stats } = await API.athlete(t, id);
   if (!fromRoster && bio) { p.name = bio.displayName || p.name; p.pos = bio.position?.abbreviation || ''; p.posName = bio.position?.displayName || ''; p.jersey = bio.jersey || ''; p.headshot = bio.headshot?.href || p.headshot; p.age = bio.age; p.height = bio.displayHeight; p.weight = bio.displayWeight; p.college = bio.college?.name || bio.collegeTeam?.displayName || ''; }
   if (!$('#modalBack').classList.contains('open')) return;
   const prevTab = $('[data-pltab].on')?.dataset.pltab || 'overview';
-  openModal(shell(bio, stats || { categories: [] }));
+  updateModal(shell(bio, stats || { categories: [] }));
   $$('[data-pltab]').forEach(b => b.classList.toggle('on', b.dataset.pltab === prevTab));
   $$('[data-plpane]').forEach(pn => (pn.style.display = pn.dataset.plpane === prevTab ? '' : 'none'));
 }

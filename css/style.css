@@ -876,3 +876,16 @@ table.linescore th, table.linescore td { padding: 8px 10px; } table.linescore .t
 }
 @media (max-width: 960px) { .bnav { grid-template-columns: repeat(6, minmax(0, 1fr)); box-sizing: border-box; padding-left: 2px; padding-right: 2px; } .bnav a { min-width: 0; } .bnav a span { white-space: nowrap; } }
 @media (min-width: 1181px) { .ticker-inner { grid-template-columns: auto; } }
+
+/* ===== v20: stacked pop-ups, odds chips, news page ===== */
+.modal .mback { position: absolute; top: 14px; left: 16px; z-index: 3; background: #ffffffd9; color: #111; border: 0; font-size: 1.4rem; line-height: 1; padding-bottom: 3px; }
+.oddschip { display: inline-block; font-size: .72rem; font-weight: 800; letter-spacing: .02em; color: var(--team, var(--ink)); background: color-mix(in srgb, var(--team, var(--ink)) 10%, transparent); padding: 2px 8px; border-radius: 99px; white-space: nowrap; vertical-align: middle; }
+.oddschip .ou { color: var(--muted); font-weight: 700; margin-left: 4px; }
+.qv-seg button .lvdot { width: 7px; height: 7px; border-radius: 50%; background: var(--bad); display: inline-block; margin-left: 4px; animation: pulse 1.2s infinite; }
+.nw-seg { margin-bottom: 18px; } .nw-team { margin-bottom: 26px; } .nw-team .nlead { min-height: 240px; }
+.nw-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 18px; } @media (max-width: 760px) { .nw-grid { grid-template-columns: 1fr; } }
+.home-news .mag .feature { min-height: 300px; }
+.tbadge { display: inline-flex; align-items: center; gap: 5px; font-size: .7rem; font-weight: 800; letter-spacing: .05em; text-transform: uppercase; color: var(--muted); } .tbadge img { width: 16px; height: 16px; object-fit: contain; }
+/* Mid-size screens: short team names in the top nav (IU FB / IU BB) so News, Leagues and More all stay visible. */
+.nav a .ns { display: none; }
+@media (max-width: 1380px) { .nav a .nl { display: none; } .nav a .ns { display: inline; } }

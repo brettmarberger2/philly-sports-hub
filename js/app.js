@@ -19,10 +19,10 @@ const MORE_ITEMS = [['history', '📜 History'], ['year', '🗓️ Year Explorer
 function renderNav(activeKey) {
   const isAct = p => activeKey === p || (p && activeKey.startsWith(p) && p !== '');
   const moreOn = MORE_ITEMS.some(([p]) => isAct(p));
-  $('#mmenu').innerHTML = `<div class="mh">Teams</div><div class="mgrid">${LIVE_KEYS.map(k => `<a href="#/team/${k}" class="${isAct('team/' + k) ? 'active' : ''}"><img src="${teamLogo(TEAMS[k])}" alt="">${NAV_LABEL[k]}</a>`).join('')}</div><div class="mh">Explore</div><div class="mgrid"><a href="#/" class="${activeKey === '' ? 'active' : ''}">🏠 Home</a><a href="javascript:void(0)" data-qv class="hot">⚡ Game day</a><a href="#/leagues" class="${isAct('leagues') ? 'active' : ''}">📊 Leagues</a>${MORE_ITEMS.map(([p, l]) => `<a href="#/${p}" class="${isAct(p) ? 'active' : ''}">${l}</a>`).join('')}</div>`;
+  $('#mmenu').innerHTML = `<div class="mh">Teams</div><div class="mgrid">${LIVE_KEYS.map(k => `<a href="#/team/${k}" class="${isAct('team/' + k) ? 'active' : ''}"><img src="${teamLogo(TEAMS[k])}" alt="">${NAV_LABEL[k]}</a>`).join('')}</div><div class="mh">Explore</div><div class="mgrid"><a href="#/" class="${activeKey === '' ? 'active' : ''}">🏠 Home</a><a href="javascript:void(0)" data-qv class="hot">⚡ Game day</a><a href="#/news" class="${isAct('news') ? 'active' : ''}">📰 News</a><a href="#/leagues" class="${isAct('leagues') ? 'active' : ''}">📊 Leagues</a>${MORE_ITEMS.map(([p, l]) => `<a href="#/${p}" class="${isAct(p) ? 'active' : ''}">${l}</a>`).join('')}</div>`;
   $('#nav').innerHTML = `<a href="#/" class="${activeKey === '' ? 'active' : ''}">Home</a>
-    <span class="sep"></span>${LIVE_KEYS.map(k => `<a href="#/team/${k}" class="${isAct('team/' + k) ? 'active' : ''}"><img src="${teamLogo(TEAMS[k])}" alt="">${NAV_LABEL[k]}</a>`).join('')}
-    <span class="sep"></span><a href="#/leagues" class="${isAct('leagues') ? 'active' : ''}">Leagues</a><button type="button" class="morebtn ${moreOn ? 'active' : ''}" id="moreBtn" aria-haspopup="true" aria-expanded="false">More ▾</button>`;
+    <span class="sep"></span>${LIVE_KEYS.map(k => `<a href="#/team/${k}" class="${isAct('team/' + k) ? 'active' : ''}"><img src="${teamLogo(TEAMS[k])}" alt=""><span class="nl">${NAV_LABEL[k]}</span><span class="ns">${NAV_SHORT[k] || NAV_LABEL[k]}</span></a>`).join('')}
+    <span class="sep"></span><a href="#/news" class="${isAct('news') ? 'active' : ''}">News</a><a href="#/leagues" class="${isAct('leagues') ? 'active' : ''}">Leagues</a><button type="button" class="morebtn ${moreOn ? 'active' : ''}" id="moreBtn" aria-haspopup="true" aria-expanded="false">More ▾</button>`;
   $('#moreMenu').innerHTML = MORE_ITEMS.map(([p, l]) => `<a href="#/${p}" class="${isAct(p) ? 'active' : ''}">${l}</a>`).join('');
 }
 /* "More" menu is a fixed-position popover so the scrolling nav bar can't clip it. */
@@ -46,6 +46,9 @@ function tickerItem(t, rg) {
 }
 async function renderTicker() {
   const res = await Promise.all(FOCUS_KEYS.map(async k => ({ t: TEAMS[k], rg: await safe(API.recentGames(TEAMS[k], 2), null) })));
+  // Live games first, then whoever played most recently.
+  const lastTs = r => (r.rg?.list?.length ? new Date(r.rg.list[r.rg.list.length - 1].date).getTime() : 0);
+  res.sort((a, b) => (b.rg?.live ? 1 : 0) - (a.rg?.live ? 1 : 0) || lastTs(b) - lastTs(a));
   $('#ticker .ticker-inner').innerHTML = `<div class="ticker-label"><span class="livedot"></span> Latest</div>${res.map(r => tickerItem(r.t, r.rg)).join('')}`;
 }
 
@@ -78,6 +81,7 @@ async function route() {
     else if (head === 'team' && TEAMS[parts[1]]) fn = viewTeam;
     else if (head === 'history') fn = viewHistoryHub;
     else if (head === 'playoffs') fn = viewPlayoffs;
+    else if (head === 'news') fn = viewNews;
     else if (head === 'leagues') fn = viewLeagues;
     else if (head === 'league' && LEAGUES[parts[1]]) fn = viewLeague;
     else if (head === 'year') fn = viewYear;
@@ -86,7 +90,7 @@ async function route() {
     else if (head === 'shop') fn = viewShop;
     else if (head === 'about') fn = viewAbout;
     else { view.innerHTML = `<div class="card center"><h2>Page not found</h2><a class="btn" href="#/">Back home</a></div>`; return; }
-    document.title = ({ '': 'My Sports Hub', team: `${TEAMS[parts[1]]?.nick || ''} · My Sports Hub`, history: 'History · My Sports Hub', playoffs: 'MLB Playoffs · My Sports Hub', leagues: 'Leagues · My Sports Hub', league: `${LEAGUES[parts[1]]?.short || ''} Standings · My Sports Hub`, year: 'Year Explorer · My Sports Hub', season: 'Season · My Sports Hub', stadiums: 'Stadiums · My Sports Hub', shop: 'Shop · My Sports Hub' })[head] || 'My Sports Hub';
+    document.title = ({ '': 'My Sports Hub', team: `${TEAMS[parts[1]]?.nick || ''} · My Sports Hub`, history: 'History · My Sports Hub', playoffs: 'MLB Playoffs · My Sports Hub', news: 'News · My Sports Hub', leagues: 'Leagues · My Sports Hub', league: `${LEAGUES[parts[1]]?.short || ''} Standings · My Sports Hub`, year: 'Year Explorer · My Sports Hub', season: 'Season · My Sports Hub', stadiums: 'Stadiums · My Sports Hub', shop: 'Shop · My Sports Hub' })[head] || 'My Sports Hub';
     await fn({ parts, q, mount: view, token: my, alive: () => my === App.token });
     NAV.after(restoreY, () => my === App.token);
   } catch (e) {
@@ -95,17 +99,45 @@ async function route() {
   }
 }
 
-/* ---------- Modal ---------- */
+/* ---------- Modal ----------
+   Pop-ups stack: opening one from inside another (box score → player, leaderboard → player, Game day → preview)
+   keeps the one underneath, so Back (phone button, ‹ in the pop-up, or Escape) returns to it instead of closing everything.
+   Each layer is its own history entry; MODAL.ctx holds a layer's live handlers (its segmented-control draw function). */
+const MODAL = { stack: [], ctx: {} };
+const modalChrome = depth => `<button class="iconbtn x" data-close="all" aria-label="Close">✕</button>${depth ? '<button class="iconbtn mback" data-close aria-label="Back">‹</button>' : ''}`;
 function openModal(html) {
-  if (!$('#modalBack').classList.contains('open')) history.pushState({ modal: true }, '', location.href);
-  $('#modal').innerHTML = `<button class="iconbtn x" data-close aria-label="Close">✕</button>${html}`;
-  $('#modalBack').classList.add('open'); document.body.style.overflow = 'hidden';
+  const back = $('#modalBack'), open = back.classList.contains('open');
+  if (open) MODAL.stack.push({ html: $('#modal').innerHTML, y: back.scrollTop, ctx: MODAL.ctx }); else MODAL.stack = [];
+  MODAL.ctx = {};
+  history.pushState({ modal: true, depth: MODAL.stack.length }, '', location.href);
+  $('#modal').innerHTML = modalChrome(MODAL.stack.length) + html;
+  back.classList.add('open'); back.scrollTop = 0; document.body.style.overflow = 'hidden';
 }
-function closeModal() { $('#modalBack').classList.remove('open'); document.body.style.overflow = ''; }
-/** Close from the X, the backdrop or Escape: step back through history so the phone Back button stays in sync. */
-function userCloseModal() { if (history.state?.modal) history.back(); else closeModal(); }
-$('#modalBack').addEventListener('click', e => { if (e.target.id === 'modalBack' || e.target.closest('[data-close]')) userCloseModal(); });
-document.addEventListener('keydown', e => { if (e.key === 'Escape' && $('#modalBack').classList.contains('open')) userCloseModal(); });
+/** Swap the open pop-up's content in place (loading → loaded, live refresh) without adding a layer. */
+function updateModal(html) {
+  if (!$('#modalBack').classList.contains('open')) return openModal(html);
+  $('#modal').innerHTML = modalChrome(MODAL.stack.length) + html;
+}
+function closeModal() { $('#modalBack').classList.remove('open'); document.body.style.overflow = ''; MODAL.stack = []; MODAL.ctx = {}; }
+/** Bring back the layer at `depth` (0 = the first pop-up), dropping everything above it. */
+function restoreModal(depth) {
+  if (depth >= MODAL.stack.length) return;
+  MODAL.stack.length = depth + 1;
+  const prev = MODAL.stack.pop();
+  MODAL.ctx = prev.ctx; $('#modal').innerHTML = prev.html; $('#modalBack').scrollTop = prev.y;
+}
+/** X / backdrop / Escape close every layer; ‹ goes back one. Both step through history so the phone Back button stays in sync. */
+function userCloseModal(all) {
+  if (!history.state?.modal) { closeModal(); return; }
+  history.go(all ? -(MODAL.stack.length + 1) : -1);
+}
+$('#modalBack').addEventListener('click', e => { const b = e.target.closest('[data-close]'); if (e.target.id === 'modalBack') userCloseModal(true); else if (b) userCloseModal(b.dataset.close === 'all'); });
+document.addEventListener('keydown', e => { if (e.key === 'Escape' && $('#modalBack').classList.contains('open')) userCloseModal(true); });
+/* Segmented controls inside pop-ups go through the layer's ctx, so a restored layer still responds. */
+$('#modal').addEventListener('click', e => {
+  const b = e.target.closest('.seg button'); if (!b || !MODAL.ctx.seg) return;
+  const v = b.dataset.k ?? b.dataset.v ?? b.dataset.t ?? b.dataset.s; if (v != null) MODAL.ctx.seg(v);
+});
 
 /* ---------- Theme toggle ---------- */
 try { const saved = localStorage.getItem('ph:theme'); if (saved === 'dark' || saved === 'light') document.documentElement.dataset.theme = saved; } catch (e) { }

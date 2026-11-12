@@ -41,16 +41,21 @@ async function qvPane(t) {
     <div class="row" style="margin-top:14px"><a class="btn small" href="#/team/${t.key}">Team page →</a><a class="btn small" href="#/team/${t.key}/schedule">Full schedule →</a>${t.college ? `<a class="btn small" href="#/team/${t.key}/picture">Rankings →</a>` : ''}</div>`;
 }
 
+/** Teams in "what matters now" order: playing right now first, then whoever plays soonest, offseason last. */
+async function teamsByActivity(keys = LIVE_KEYS) {
+  const gss = await Promise.all(keys.map(k => timeout(safe(API.gameStatus(TEAMS[k]), null), 6000)));
+  const rank = i => (gss[i]?.live ? 0 : gss[i]?.next ? 1 : 2);
+  return keys.map((k, i) => ({ k, live: !!gss[i]?.live, r: rank(i), ts: gss[i]?.next?.ts ?? Infinity })).sort((a, b) => a.r - b.r || a.ts - b.ts);
+}
+const qvSegHtml = (order, on) => order.map(({ k, live }) => `<button data-k="${k}" class="${k === on ? 'on' : ''}"><img src="${esc(teamLogo(TEAMS[k]))}" alt="">${esc(QV_SHORT[k])}${live ? '<span class="lvdot" title="Live now"></span>' : k === 'phillies' ? ' <span class="dim small">offseason</span>' : ''}</button>`).join('');
+
 async function openQuickView(startKey) {
   openModal(`<div class="qv-head"><div class="small" style="opacity:.8;letter-spacing:.12em;text-transform:uppercase">${esc(new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' }))}</div><h2>⚡ Game day</h2></div>
-    <div class="pl-body qv"><div class="seg qv-seg" id="qvSeg">${LIVE_KEYS.map(k => `<button data-k="${k}"><img src="${esc(teamLogo(TEAMS[k]))}" alt="">${esc(QV_SHORT[k])}${k === 'phillies' ? ' <span class="dim small">offseason</span>' : ''}</button>`).join('')}</div><div id="qvBox">${spinner('Checking the schedule…')}</div></div>`);
-  let pick = startKey;
-  if (!pick) {
-    const gss = await Promise.all(FOCUS_KEYS.map(k => safe(API.gameStatus(TEAMS[k]), null)));
-    const live = FOCUS_KEYS.find((k, i) => gss[i]?.live);
-    pick = live || FOCUS_KEYS.map((k, i) => ({ k, ts: gss[i]?.next?.ts ?? Infinity })).sort((a, b) => a.ts - b.ts)[0].k;
-  }
+    <div class="pl-body qv"><div class="seg qv-seg" id="qvSeg">${qvSegHtml(LIVE_KEYS.map(k => ({ k })), startKey)}</div><div id="qvBox">${spinner('Checking the schedule…')}</div></div>`);
+  const order = await teamsByActivity();
   if (!$('#qvBox')) return;
+  const pick = startKey || order[0].k;
+  $('#qvSeg').innerHTML = qvSegHtml(order, pick);
   const draw = async k => {
     $$('#qvSeg button').forEach(b => b.classList.toggle('on', b.dataset.k === k));
     const box = $('#qvBox'); box.innerHTML = spinner('Loading…'); box.dataset.k = k;
@@ -59,7 +64,7 @@ async function openQuickView(startKey) {
     $('#qvBox').innerHTML = html || errBox('Could not load this team right now.');
     fillPreviewLines($('#qvBox'));
   };
-  $('#qvSeg').addEventListener('click', e => { const b = e.target.closest('[data-k]'); if (b) draw(b.dataset.k); });
+  MODAL.ctx.seg = draw;
   draw(pick);
 }
 

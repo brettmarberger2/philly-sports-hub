@@ -95,6 +95,19 @@ function fillPreviewLines(root = document) {
   $$('[data-prev]', root).forEach(async el => { if (el.dataset.done) return; el.dataset.done = 1; const h = await previewLine(el.dataset.prev); if (h) el.innerHTML = `${h}<span class="pvmore">Tap for full preview ›</span>`; });
 }
 
+/* ---------- Odds chips: the spread and total for any upcoming game, e.g. "PHI -3.5 · O/U 44.5" ---------- */
+async function oddsLine(ref) {
+  const [kind, lg, id] = ref.split('|');
+  const o = kind === 'mlb' ? (await safe(mlbPreview(id), null))?.odds : (await safe(API.gameSummary(kind, lg, id), null))?.odds;
+  if (!o?.details || /^(even|off)$/i.test(o.details)) return o?.ou ? `<span class="ou">O/U ${esc(o.ou)}</span>` : '';
+  return `${esc(o.details)}${o.ou ? `<span class="ou">O/U ${esc(o.ou)}</span>` : ''}`;
+}
+function fillOdds(root = document) {
+  $$('[data-odds]', root).forEach(async el => { if (el.dataset.done) return; el.dataset.done = 1; const h = await oddsLine(el.dataset.odds); if (h) el.innerHTML = `<span class="oddschip" title="Betting line (ESPN BET)">${h}</span>`; });
+}
+/* Anything rendered later (table re-sorts, live refreshes) gets its lines and odds filled in automatically. */
+(() => { let queued = false; new MutationObserver(() => { if (queued) return; queued = true; setTimeout(() => { queued = false; fillOdds(); fillPreviewLines(); }, 60); }).observe(document.body, { childList: true, subtree: true }); })();
+
 /* ---------- Any team in the league ---------- */
 document.addEventListener('click', e => {
   const c = e.target.closest('[data-teamcard]'); if (!c) return;
@@ -111,11 +124,11 @@ async function openTeamCard(lg, id) {
   const table = await safe(API.leagueTable(lg), null);
   const row = table?.teams.find(x => String(x.id) === String(id));
   if (!$('#modalBack').classList.contains('open')) return;
-  if (!row) { openModal(`<div class="pl-body">${errBox('Team not found.')}</div>`); return; }
+  if (!row) { updateModal(`<div class="pl-body">${errBox('Team not found.')}</div>`); return; }
   const t = { key: `x${id}`, league: lg, sport: base.sport, espnId: lg === 'mlb' ? null : id, mlbId: lg === 'mlb' ? +id : null, abbr: row.abbr, name: row.name, nick: row.name.split(' ').slice(-1)[0], recordFmt: base.recordFmt, gamesInSeason: base.gamesInSeason };
   const statusTxt = r => (lg === 'nba' ? `${r.conf} #${r.seed}` : r.status === 'div' ? `${r.lg || r.conf} #${r.seed} · division leader` : r.status === 'wc' ? `${r.lg || r.conf} #${r.seed} · wild card` : `Outside the playoff field`);
   const nbaStart = lg === 'nba' ? table.year : null;
-  openModal(`<div class="pl-head tc-head"><img src="${esc(row.logo)}" alt="" style="width:88px;height:88px;object-fit:contain;background:rgba(255,255,255,.92);border-radius:16px;padding:8px"><div>
+  updateModal(`<div class="pl-head tc-head"><img src="${esc(row.logo)}" alt="" style="width:88px;height:88px;object-fit:contain;background:rgba(255,255,255,.92);border-radius:16px;padding:8px"><div>
       <div class="small" style="opacity:.85;letter-spacing:.1em;text-transform:uppercase">${esc(LEAGUES[lg].short)} · ${esc(lg === 'nba' ? (row.conf === 'East' ? 'Eastern Conference' : 'Western Conference') : shortDiv(row.divName))}${table.fallback ? ' · last season' : ''}</div><h2>${esc(row.name)}</h2>
       <div class="row" style="gap:6px"><span class="badge" style="background:#ffffff26;color:#fff">${row.w}-${row.l}${row.t ? '-' + row.t : ''}</span><span class="badge" style="background:#ffffff26;color:#fff">${esc(statusTxt(row))}</span>${row.streak ? `<span class="badge" style="background:#ffffff26;color:#fff">${esc(row.streak)}</span>` : ''}</div></div></div>
     <div class="pl-body"><div class="seg" id="tcSeg" style="margin-bottom:14px"><button data-v="sched" class="on">Schedule &amp; results</button><button data-v="lead">Team leaders</button><button data-v="stats">Team stats</button></div><div id="tcBox">${spinner()}</div>
@@ -146,6 +159,6 @@ async function openTeamCard(lg, id) {
       }
     }
   };
-  $('#tcSeg').addEventListener('click', e => { const b = e.target.closest('[data-v]'); if (b) draw(b.dataset.v); });
+  MODAL.ctx.seg = draw;
   draw('sched');
 }

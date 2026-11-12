@@ -73,7 +73,9 @@ const API = {
 
   /** Live info override from scoreboard (richer for in-progress games). */
   async scoreboardGame(t) {
-    const j = await safe(getJSON(`${ESPN.site(t)}/scoreboard`, 20), null);
+    // ESPN's college scoreboards default to the Top 25 only; ask for the whole division so a live Hoosiers game is found.
+    const all = t.league === 'mens-college-basketball' ? '?groups=50&limit=400' : t.league === 'college-football' ? '?groups=80&limit=400' : '';
+    const j = await safe(getJSON(`${ESPN.site(t)}/scoreboard${all}`, 20), null);
     const ev = j?.events?.find(e => e.competitions?.[0]?.competitors?.some(c => String(c.team?.id) === String(t.espnId)));
     return ev ? API.normEvent(t, ev) : null;
   },

@@ -5,8 +5,13 @@ addEventListener('scroll', () => { if (NAV.cur != null) NAV.scroll[NAV.cur] = sc
 ['wheel', 'touchstart', 'keydown'].forEach(ev => addEventListener(ev, () => (NAV.userMoved = true), { passive: true }));
 
 addEventListener('popstate', () => {
-  // Same page, different history entry = the Back press was closing a pop-up.
-  if ((location.hash || '#/') === NAV.cur) { if ($('#modalBack').classList.contains('open')) closeModal(); return; }
+  // Same page, different history entry = the Back press was stepping through pop-up layers.
+  if ((location.hash || '#/') === NAV.cur) {
+    const st = history.state, open = $('#modalBack').classList.contains('open');
+    if (open) { if (st?.modal && st.depth < MODAL.stack.length) restoreModal(st.depth); else if (!st?.modal) closeModal(); }
+    else if (st?.modal) history.back();            // a leftover pop-up entry from a page opened inside a pop-up: skip it
+    return;
+  }
   NAV.popped = true;
 });
 
@@ -49,6 +54,7 @@ function renderCrumbs(parts) {
   const head = parts[0] || '', c = [['#/', 'Home']];
   if (head === 'team' && TEAMS[parts[1]]) { c.push([`#/team/${parts[1]}`, TEAMS[parts[1]].nick]); if (parts[2] && parts[2] !== 'overview') c.push([null, TAB_NAMES(parts[1])[parts[2]] || parts[2]]); }
   else if (head === 'season' && TEAMS[parts[1]]) { c.push([`#/team/${parts[1]}`, TEAMS[parts[1]].nick], [`#/team/${parts[1]}/history`, 'History'], [null, seasonLabel(TEAMS[parts[1]], +parts[2])]); }
+  else if (head === 'news') c.push([null, 'News']);
   else if (head === 'leagues') c.push([null, 'Leagues']);
   else if (head === 'league' && LEAGUES[parts[1]]) { c.push(['#/leagues', 'Leagues'], [`#/league/${parts[1]}`, LEAGUES[parts[1]].short]); if (parts[2] && parts[2] !== 'standings') c.push([null, (LEAGUE_TABS.find(x => x[0] === parts[2]) || [])[1] || parts[2]]); }
   else if (head === 'history') c.push([null, 'History']);

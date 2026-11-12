@@ -114,7 +114,7 @@ async function openLeaderboard(lg, key, year, scope = 'league') {
     $('#lbBox').innerHTML = renderTable(`lb-${lg}-${key}-${sc}-${year ?? 'c'}`, cols, d.rows, { rowClass: r => (r.philly && sc === 'league' ? 'hl' : '') }) +
       (sc === 'league' ? `<p class="small dim" style="margin-top:8px">${d.rows.some(r => r.philly) ? `${t.nick} players are highlighted.` : `No ${t.nick} player in the top ${d.rows.length}. Switch to "${t.nick} only" to see where they rank.`}${lg === 'nba' ? ' Minimum games required to qualify.' : ''}</p>` : '');
   };
-  $('#lbSeg').addEventListener('click', e => { const b = e.target.closest('[data-s]'); if (b) draw(b.dataset.s); });
+  MODAL.ctx.seg = draw;
   draw(scope);
 }
 

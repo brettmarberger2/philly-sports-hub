@@ -146,7 +146,7 @@ async function openGame(kind, lg, id, opts = {}) {
   try { g = await API.gameSummary(kind, lg, id); } catch (e) { g = null; }
   if (!$('#modalBack').classList.contains('open')) return;
   if (opts.refresh && $('#gameMark')?.dataset.g !== String(id)) return;
-  if (!g || !g.teams.length) { if (!opts.refresh) openModal(`<div class="pl-body">${errBox('This game could not be loaded.')}</div>`); return; }
+  if (!g || !g.teams.length) { if (!opts.refresh) updateModal(`<div class="pl-body">${errBox('This game could not be loaded.')}</div>`); return; }
   const rmap = lg === 'mlb' ? new Map(((await safe(getRosterCached('phillies'), null))?.players || []).map(p => [normName(p.name), p.id])) : null;
   const [away, home] = g.teams, ph = g.teams.find(t => t.id === PHILLY_ID[lg]) || home, other = g.teams.find(t => t !== ph);
   const pre = g.state === 'pre', live = g.state === 'in';
@@ -155,7 +155,7 @@ async function openGame(kind, lg, id, opts = {}) {
   const tstats = g.teamStats.length ? `<div class="table-wrap"><table class="data"><thead><tr><th class="stk">Team stats</th>${g.teams.map(t => `<th class="num">${esc(t.abbr)}</th>`).join('')}</tr></thead><tbody>${g.teamStats.map(s => `<tr><td class="stk muted">${esc(s.label)}</td>${s.vals.map(v => `<td class="num"><b>${esc(v)}</b></td>`).join('')}</tr>`).join('')}</tbody></table></div>` : '';
   const T = TEAMS[LEAGUES[lg].team];
   const tab = opts.tab || ph.id;
-  openModal(`<div id="gameMark" data-g="${esc(id)}" hidden></div><div class="pl-head bx-head" style="--team:${T.primary}"><div class="bx-top"><div class="small" style="opacity:.85;letter-spacing:.1em;text-transform:uppercase">${esc(g.note || LEAGUES[lg].short)} · ${esc(fmtDate(g.date, { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' }))}</div>${status}</div>
+  updateModal(`<div id="gameMark" data-g="${esc(id)}" hidden></div><div class="pl-head bx-head" style="--team:${T.primary}"><div class="bx-top"><div class="small" style="opacity:.85;letter-spacing:.1em;text-transform:uppercase">${esc(g.note || LEAGUES[lg].short)} · ${esc(fmtDate(g.date, { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' }))}</div>${status}</div>
       <div class="bx-teams">${side(away)}<div class="bx-at">${pre ? '@' : '–'}</div>${side(home)}</div>
       <div class="small" style="opacity:.85">${esc([g.venue, g.tv].filter(Boolean).join(' · '))}${g.decisions?.length ? ` · ${esc(g.decisions.join(' · '))}` : ''}</div></div>
     <div class="pl-body">
@@ -171,7 +171,7 @@ async function openGame(kind, lg, id, opts = {}) {
   if (pre) { fillPreview(g); return; }
   let cur = tab;
   const draw = tid => { cur = tid; $$('#bxSeg button').forEach(b => b.classList.toggle('on', b.dataset.t === tid)); $('#bxBox').innerHTML = tid === 'team' ? tstats : playerTablesHtml(g, tid, rmap); };
-  $('#bxSeg').addEventListener('click', e => { const b = e.target.closest('[data-t]'); if (b) draw(b.dataset.t); });
+  MODAL.ctx.seg = draw;
   draw(g.teams.some(t => t.id === tab) || tab === 'team' ? tab : ph.id);
   if (live) window._gameTimer = setTimeout(() => { if ($('#modalBack').classList.contains('open') && $('#gameMark')?.dataset.g === String(id)) openGame(kind, lg, id, { refresh: true, tab: cur }); }, 30000);
 }

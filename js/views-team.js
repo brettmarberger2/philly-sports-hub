@@ -90,7 +90,7 @@ async function tabOverview(t, { mount, alive }) {
     const upcoming = gs.games.filter(g => g.state === 'pre' && g.stype !== 1).slice(0, 5);
     $('#ovGames').innerHTML = `<h3>Game center</h3><div class="grid g2">${gs.live ? gameBox(t, gs.live, 'LIVE') : gameBox(t, gs.next, 'NEXT')}${gameBox(t, gs.last, 'LAST')}</div>
       ${played.length ? `<div class="row" style="margin-top:14px"><span class="small muted">Recent form</span>${resultDots(played.slice(-8))}</div>` : ''}
-      ${upcoming.length ? `<h4 style="margin-top:16px">Coming up</h4><div class="stack" style="gap:6px">${upcoming.map(g => `<div class="row between small click" data-game="${gameRef(t, g)}" style="cursor:pointer"><span class="row" style="gap:8px"><img src="${esc(g.opp.logo)}" width="22" height="22" alt="" onerror="this.style.visibility='hidden'"> ${g.home ? 'vs' : '@'} ${esc(g.opp.name)}</span><span class="muted">${esc(fmtDay(g.date))} · ${esc(fmtTime(g.date))}${g.tv ? ' · ' + esc(g.tv) : ''}</span></div>`).join('')}</div>` : ''}
+      ${upcoming.length ? `<h4 style="margin-top:16px">Coming up</h4><div class="stack" style="gap:6px">${upcoming.map(g => `<div class="row between small click" data-game="${gameRef(t, g)}" style="cursor:pointer"><span class="row" style="gap:8px"><img src="${esc(g.opp.logo)}" width="22" height="22" alt="" onerror="this.style.visibility='hidden'"> ${g.home ? 'vs' : '@'} ${esc(g.opp.name)} <span data-odds="${gameRef(t, g)}"></span></span><span class="muted">${esc(fmtDay(g.date))} · ${esc(fmtTime(g.date))}${g.tv ? ' · ' + esc(g.tv) : ''}</span></div>`).join('')}</div>` : ''}
       <a class="btn small" style="margin-top:14px" href="#/team/${t.key}/schedule">Full schedule &amp; results →</a>`;
   };
   drawGames();
@@ -300,6 +300,7 @@ async function tabSchedule(t, { mount, alive, q }) {
     <div class="chips" id="schedF">${['All', 'Home', 'Away', 'Wins', 'Losses', 'Postseason'].map((f, i) => `<button class="chip ${i === 0 ? 'on' : ''}" data-f="${f}">${f}</button>`).join('')}</div></div><div id="schedBody">${spinner()}</div>`;
   let games = [], filter = 'All', season = null;
   const paint = () => {
+    const oddsIds = new Set(games.filter(g => g.state === 'pre' && g.ts > Date.now() - 3 * 3600e3).slice(0, 6).map(g => g.id));
     const f = games.filter(g => filter === 'All' || (filter === 'Home' && g.home) || (filter === 'Away' && !g.home) || (filter === 'Wins' && g.result === 'W') || (filter === 'Losses' && g.result === 'L') || (filter === 'Postseason' && g.stype === 3));
     let w = 0, l = 0, tie = 0; const recMap = new Map();
     games.forEach(g => { if (g.result === 'W') w++; else if (g.result === 'L') l++; else if (g.result === 'T') tie++; if (g.state === 'post') recMap.set(g.id, g.stype === 3 ? '' : (t.recordFmt === 'wlt' && tie ? `${w}-${l}-${tie}` : `${w}-${l}`)); });
@@ -312,7 +313,7 @@ async function tabSchedule(t, { mount, alive, q }) {
       { key: 'ts', label: 'Date', sortVal: g => g.ts, fmt: g => `<span>${esc(fmtDate(g.date, { month: 'short', day: 'numeric', year: 'numeric' }))}</span>` },
       { key: 'label', label: 'Round', cls: 'muted', fmt: g => esc(g.label) },
       { key: 'opp', label: 'Opponent', sortVal: g => g.opp.name, fmt: g => `<div class="pname" data-teamcard="${t.league}|${g.opp.id}" style="cursor:pointer"><span class="dim" style="min-width:22px">${g.home ? 'vs' : '@'}</span><img src="${esc(g.opp.logo)}" style="border-radius:0;background:none;width:24px;height:24px;object-fit:contain" alt="" loading="lazy" onerror="this.style.visibility='hidden'">${esc(g.opp.name)}</div>` },
-      { key: 'result', label: 'Result', fmt: g => (g.state === 'post' ? `${resultChip(g)} <span class="dim small">Box score ›</span>` : g.state === 'in' ? `<span class="badge live">${esc(g.detail)}</span> ${g.ourScore ?? 0}–${g.oppScore ?? 0}` : `<span class="muted">${g.tbd ? 'TBD' : esc(fmtTime(g.date))}</span>`) },
+      { key: 'result', label: 'Result', fmt: g => (g.state === 'post' ? `${resultChip(g)} <span class="dim small">Box score ›</span>` : g.state === 'in' ? `<span class="badge live">${esc(g.detail)}</span> ${g.ourScore ?? 0}–${g.oppScore ?? 0}` : `<span class="muted">${g.tbd ? 'TBD' : esc(fmtTime(g.date))}</span>${oddsIds.has(g.id) ? `<div data-odds="${gameRef(t, g)}" style="margin-top:3px"></div>` : ''}`) },
       { key: 'rec', label: 'Record', num: true, sortVal: g => g.ts, fmt: g => esc(recMap.get(g.id) || '') },
       { key: 'tv', label: 'TV', cls: 'muted', fmt: g => esc(g.tv || '') },
       { key: 'venue', label: 'Venue', cls: 'muted', fmt: g => esc(g.venue || '') },
